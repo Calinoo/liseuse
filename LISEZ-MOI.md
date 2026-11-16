@@ -49,11 +49,19 @@ La méthode suivie est **spec d'abord, test ensuite, code en dernier** :
 2. On écrit un test qui cite cet identifiant et **qui échoue** (`tests/test_*.py`).
 3. On écrit le code minimal qui le fait passer, puis on relance **toute** la suite (régression).
 
+Stratégie de test : on ne relance pas tout à chaque fois.
+
 ```bash
-./test.sh                          # toute la régression (~4 min)
-./test.sh --target webkit-iphone   # une seule cible (~1 min 30)
-./test.sh -k PROG                  # une seule famille d'exigences
+./test.sh rapide      # pendant le développement : unitaires + socle stratégique sur iPhone (~30 s)
+./test.sh impact      # à chaque changement : tests liés aux fichiers modifiés + socle, 3 cibles
+./test.sh livraison   # avant publication : tout sur iPhone + socle sur iPad et Chromium (~1 min 20)
+./test.sh complet     # gros changement ou mise à jour de pdf.js/JSZip : tout, partout
+./test.sh -k SRCH     # une famille d'exigences précise
 ```
+
+- **Socle stratégique** (`-m strategic`, liste dans `tests/conftest.py`) : les parcours qui ne doivent jamais casser (importer, ouvrir un PDF et un EPUB, défiler, reprendre, hors ligne, sécurité EPUB, recherche, rotation).
+- **Analyse d'impact** (`tests/impact.py`) : associe chaque fichier modifié depuis la dernière publication aux familles d'exigences concernées. `app.js` touchant à tout, le modifier déclenche le mode livraison.
+- Les tests tournent en parallèle (pytest-xdist).
 
 - `tests/test_core.py` : tests unitaires de la logique pure (`core.js`).
 - Les autres fichiers sont des tests de bout en bout. Ils pilotent la vraie app avec Playwright, dans **WebKit** (le moteur de Safari) en iPhone et iPad, et dans **Chromium**.

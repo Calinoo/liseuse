@@ -72,14 +72,21 @@
   </div>
 
   <div id="settings" class="sheet hidden">
-    <div class="row">
-      <span>Thème</span>
-      <div class="seg" id="themeSeg">
-        <button data-theme="light">Clair</button>
-        <button data-theme="sepia">Sépia</button>
-        <button data-theme="dark">Sombre</button>
+    <div class="row theme-row">
+      <span>Thème <small id="themePeriod" class="muted"></small></span>
+      <div class="swatches" id="themeSeg">
+        <button data-theme="light"><b>Aa</b>Clair</button>
+        <button data-theme="sepia"><b>Aa</b>Sépia</button>
+        <button data-theme="green"><b>Aa</b>Vert</button>
+        <button data-theme="dark"><b>Aa</b>Sombre</button>
+        <button data-theme="night"><b>Aa</b>Nuit</button>
+        <button data-theme="amber"><b>Aa</b>Ambre</button>
       </div>
     </div>
+    <label class="toggle">
+      <span>Automatique jour / nuit<small>Suit le mode sombre de l'iPhone</small></span>
+      <input type="checkbox" id="autoTheme">
+    </label>
     <div class="row epub-only">
       <span>Taille du texte</span>
       <div class="stepper">

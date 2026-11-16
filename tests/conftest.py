@@ -25,6 +25,26 @@ TARGETS = {
 }
 
 
+# Socle stratégique : les parcours qui ne doivent JAMAIS casser. Toujours exécutés.
+STRATEGIC = (
+    "test_BIB2_import_several_at_once", "test_BIB8_books_survive_reload",
+    "test_PDF1_pages_full_width", "test_PDF2_only_nearby_pages", "test_EPUB1_all_chapters",
+    "test_EPUB3_book_cannot_run_code", "test_DEF1_tap_toggles", "test_DEF2_scrolls_at_set_speed",
+    "test_DEF9_smooth_subpixel", "test_PROG4_reopen_resumes", "test_OFF1_", "test_OFF2_",
+    "test_NAV1_", "test_SRCH5_go_to_result_epub", "test_AFF6_rotation",
+)
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "strategic: parcours critique, exécuté à chaque vérification")
+
+
+def pytest_collection_modifyitems(config, items):
+    for item in items:
+        if item.originalname.startswith(STRATEGIC):
+            item.add_marker(pytest.mark.strategic)
+
+
 def pytest_addoption(parser):
     parser.addoption("--target", action="append", choices=list(TARGETS),
                      help="Cible(s) à tester (par défaut : toutes)")

@@ -1,5 +1,6 @@
 """Affichage (AFF-1..5) et hors connexion (OFF-1..3)."""
 import json
+import re
 
 import pytest
 
@@ -17,7 +18,8 @@ def _settings(app):
 
 
 @pytest.mark.parametrize("theme, bg", [("light", "rgb(250, 248, 243)"), ("sepia", "rgb(244, 236, 216)"),
-                                       ("dark", "rgb(18, 18, 18)")])
+                                       ("green", "rgb(227, 238, 220)"), ("dark", "rgb(18, 18, 18)"),
+                                       ("night", "rgb(0, 0, 0)"), ("amber", "rgb(0, 0, 0)")])
 def test_AFF1_themes(app, books, theme, bg):
     _open_epub(app, books)
     _settings(app)
@@ -228,3 +230,94 @@ def test_AFF8_no_fullscreen_button_when_installed(ctx, base_url, books):
     import_books(page, books, "sample.epub")
     open_book(page, "Mon livre de test")
     assert not page.locator("#fsBtn").is_visible()
+
+
+
+@pytest.mark.parametrize("theme, must, must_not", [
+    ("night", ["invert"], []), ("amber", ["invert", "sepia"], []), ("green", [], ["invert"]),
+])
+def test_AFF1_new_themes_on_pdf(app, books, theme, must, must_not):
+    import_books(app, books, "sample.pdf")
+    open_book(app, "sample")
+    _settings(app)
+    app.locator(f"#themeSeg [data-theme={theme}]").click()
+    f = app.evaluate("getComputedStyle(document.querySelector('.page')).filter")
+    assert all(m in f for m in must) and not any(m in f for m in must_not), f
+
+
+THEMES = ["light", "sepia", "green", "dark", "night", "amber"]
+
+
+def _colors(app):
+    return app.evaluate("""() => ({
+        fg: getComputedStyle(document.querySelector('.epub-body')).color,
+        bg: getComputedStyle(document.getElementById('readerView')).backgroundColor })""")
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_AFF9_every_theme_is_readable(app, books, theme):
+    _open_epub(app, books)
+    _settings(app)
+    app.locator(f"#themeSeg [data-theme={theme}]").click()
+    c = _colors(app)
+    ratio_ = app.evaluate("c => LiseuseCore.contrastRatio(c.fg, c.bg)", c)
+    assert ratio_ >= 7, f"{theme} : contraste {ratio_:.1f}:1"
+    if theme == "night":
+        assert c["bg"] == "rgb(0, 0, 0)" and ratio_ <= 13, f"Nuit trop éblouissant : {ratio_:.1f}:1"
+    if theme == "amber":
+        r, g, b = app.evaluate("c => LiseuseCore.parseColor(c)", c["fg"])
+        assert c["bg"] == "rgb(0, 0, 0)" and b <= 0.4 * r, f"trop de bleu : {c['fg']}"
+
+
+def test_AFF10_auto_follows_iphone_dark_mode(app, books):
+    _open_epub(app, books)
+    _settings(app)
+    app.emulate_media(color_scheme="light")
+    app.locator("#autoTheme").check()
+    theme = lambda: app.evaluate("document.documentElement.dataset.theme")
+    assert theme() == "light"
+    app.emulate_media(color_scheme="dark")
+    app.wait_for_function("document.documentElement.dataset.theme === 'night'")
+    # choisir un thème la nuit remplace le thème de nuit
+    app.locator("#themeSeg [data-theme=amber]").click()
+    assert theme() == "amber"
+    app.emulate_media(color_scheme="light")
+    app.wait_for_function("document.documentElement.dataset.theme === 'light'")
+    app.locator("#themeSeg [data-theme=green]").click()
+    app.emulate_media(color_scheme="dark")
+    app.wait_for_function("document.documentElement.dataset.theme === 'amber'")
+    # mémorisé
+    app.reload()
+    app.wait_for_function("window.LiseuseApp && window.LiseuseApp.ready")
+    assert theme() == "amber"
+    app.emulate_media(color_scheme="light")
+    app.wait_for_function("document.documentElement.dataset.theme === 'green'")
+
+
+def test_AFF10_turning_auto_off_restores_manual_theme(app, books):
+    _open_epub(app, books)
+    _settings(app)
+    app.locator("#themeSeg [data-theme=sepia]").click()
+    app.emulate_media(color_scheme="dark")
+    app.locator("#autoTheme").check()
+    app.wait_for_function("document.documentElement.dataset.theme === 'night'")
+    assert "on" in app.locator("#themeSeg [data-theme=night]").get_attribute("class")
+    app.locator("#autoTheme").uncheck()
+    app.wait_for_function("document.documentElement.dataset.theme === 'sepia'")
+
+
+@pytest.mark.parametrize("theme", THEMES)
+def test_AFF11_sliders_visible_in_every_theme(app, books, theme):
+    _open_epub(app, books)
+    _settings(app)
+    app.locator(f"#themeSeg [data-theme={theme}]").click()
+    app.locator("#settingsBtn").click()   # referme les réglages
+    for sel in ["#speed", "#seek"]:
+        img, bg = app.evaluate(f"""() => [getComputedStyle(document.querySelector('{sel}')).backgroundImage,
+            getComputedStyle(document.getElementById('readerView')).backgroundColor]""")
+        m = re.search(r"rgba?\([^)]*\)", img)
+        assert m, f"{theme} {sel} : rail non dessiné ({img})"
+        rail = m.group(0)
+        assert not re.search(r",\s*0\)$", rail), f"rail transparent : {rail}"
+        ratio_ = app.evaluate("([a, b]) => LiseuseCore.contrastRatio(a, b)", [rail, bg])
+        assert ratio_ >= 3, f"{theme} {sel} : rail {rail} sur {bg} = {ratio_:.1f}:1"

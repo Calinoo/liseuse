@@ -179,7 +179,34 @@
     return n === 1 ? '1 résultat' : `${n} résultats`;
   }
 
+  // AFF-1 / AFF-10 : thèmes et thème effectif
+  const THEMES = ['light', 'sepia', 'green', 'dark', 'night', 'amber'];
+  function effectiveTheme(s, dark) {
+    const ok = (t, d) => (THEMES.includes(t) ? t : d);
+    if (s.autoTheme) return dark ? ok(s.nightTheme, 'night') : ok(s.dayTheme, 'light');
+    return ok(s.theme, 'light');
+  }
+
+  // AFF-9 : contraste WCAG 2
+  function parseColor(c) {
+    c = String(c).trim();
+    let m = /^#([0-9a-f]{6})$/i.exec(c);
+    if (m) return [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16));
+    m = /^rgba?\(([^)]+)\)$/i.exec(c);
+    if (m) return m[1].split(',').slice(0, 3).map((x) => Math.round(parseFloat(x)));
+    return null;
+  }
+  function luminance(rgb) {
+    const [r, g, b] = rgb.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+  function contrastRatio(a, b) {
+    const la = luminance(parseColor(a)), lb = luminance(parseColor(b));
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  }
+
   const Core = {
+    THEMES, effectiveTheme, parseColor, contrastRatio,
     foldText, searchFolded, snippet, resultCount,
     locate, pageLabel,
     SPEED_MIN, SPEED_MAX, SPEED_DEFAULT, FONT_MIN, FONT_MAX,

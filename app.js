@@ -20,7 +20,9 @@ const state = {
 };
 
 /* ---------- Réglages ---------- */
-const settings = Object.assign({ speed: 30, theme: 'light', fontSize: 19, font: 'serif' }, loadSettings());
+const settings = Object.assign({ speed: 30, theme: 'light', fontSize: 19, font: 'serif',
+  autoTheme: false, dayTheme: 'light', nightTheme: 'night' }, loadSettings());
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 function loadSettings() { try { return JSON.parse(localStorage.getItem('liseuse-settings')) || {}; } catch { return {}; } }
 function saveSettings() { try { localStorage.setItem('liseuse-settings', JSON.stringify(settings)); } catch {} }
 
@@ -566,7 +568,8 @@ fsBtn.addEventListener('click', () => {
 
 /* ---------- Affichage ---------- */
 function applySettings() {
-  document.documentElement.dataset.theme = settings.theme;
+  const theme = Core.effectiveTheme(settings, darkQuery.matches);
+  document.documentElement.dataset.theme = theme;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
   const body = content.querySelector('.epub-body');
@@ -575,7 +578,9 @@ function applySettings() {
     body.classList.toggle('sans', settings.font === 'sans');
   }
   $('#fontVal').textContent = settings.fontSize;
-  document.querySelectorAll('#themeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.theme === settings.theme));
+  document.querySelectorAll('#themeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.theme === theme));
+  $('#autoTheme').checked = !!settings.autoTheme;
+  $('#themePeriod').textContent = settings.autoTheme ? (darkQuery.matches ? '· de nuit' : '· de jour') : '';
   document.querySelectorAll('#fontSeg button').forEach((b) => b.classList.toggle('on', b.dataset.font === settings.font));
 }
 function changeLayout(fn) {
@@ -585,7 +590,17 @@ function changeLayout(fn) {
   applySettings();
   requestAnimationFrame(() => restoreRatio(r));
 }
-document.querySelectorAll('#themeSeg button').forEach((b) => b.addEventListener('click', () => { settings.theme = b.dataset.theme; saveSettings(); applySettings(); }));
+// AFF-10 : en mode automatique, choisir un thème remplace celui de la période en cours
+document.querySelectorAll('#themeSeg button').forEach((b) => b.addEventListener('click', () => {
+  const t = b.dataset.theme;
+  if (settings.autoTheme) settings[darkQuery.matches ? 'nightTheme' : 'dayTheme'] = t;
+  else settings.theme = t;
+  saveSettings(); applySettings();
+}));
+$('#autoTheme').addEventListener('change', (e) => { settings.autoTheme = e.target.checked; saveSettings(); applySettings(); });
+const onSchemeChange = () => { if (settings.autoTheme) applySettings(); };
+if (darkQuery.addEventListener) darkQuery.addEventListener('change', onSchemeChange);
+else if (darkQuery.addListener) darkQuery.addListener(onSchemeChange);
 document.querySelectorAll('#fontSeg button').forEach((b) => b.addEventListener('click', () => changeLayout(() => { settings.font = b.dataset.font; })));
 $('#fontDown').addEventListener('click', () => changeLayout(() => { settings.fontSize = Core.clampFontSize(settings.fontSize - 1); }));
 $('#fontUp').addEventListener('click', () => changeLayout(() => { settings.fontSize = Core.clampFontSize(settings.fontSize + 1); }));

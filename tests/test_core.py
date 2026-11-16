@@ -216,3 +216,33 @@ def test_SRCH3_snippet(core, start, end, expected):
 
 def test_SRCH3_snippet_collapses_whitespace(core):
     assert core("snippet", "un\n\n  deux trois", 11, 16, 40) == {"before": "un deux ", "match": "trois", "after": ""}
+
+
+# ---------- AFF-9 : contraste (formule WCAG 2) ----------
+@pytest.mark.parametrize("a, b, expected", [
+    ("#000000", "#ffffff", 21.0),
+    ("#ffffff", "#ffffff", 1.0),
+    ("rgb(0, 0, 0)", "rgb(255, 255, 255)", 21.0),
+    ("#777777", "#ffffff", 4.48),
+])
+def test_AFF9_contrast_ratio(core, a, b, expected):
+    assert core("contrastRatio", a, b) == pytest.approx(expected, abs=0.01)
+
+
+@pytest.mark.parametrize("c, expected", [("#e8a54b", [232, 165, 75]), ("rgb(1, 2, 3)", [1, 2, 3]),
+                                         ("rgba(10, 20, 30, 0.5)", [10, 20, 30])])
+def test_AFF9_parse_color(core, c, expected):
+    assert core("parseColor", c) == expected
+
+
+# ---------- AFF-10 : thème effectif ----------
+@pytest.mark.parametrize("s, dark, expected", [
+    ({"theme": "sepia", "autoTheme": False, "dayTheme": "light", "nightTheme": "night"}, True, "sepia"),
+    ({"theme": "sepia", "autoTheme": True, "dayTheme": "light", "nightTheme": "night"}, True, "night"),
+    ({"theme": "sepia", "autoTheme": True, "dayTheme": "green", "nightTheme": "amber"}, False, "green"),
+    ({"theme": "sepia", "autoTheme": True}, True, "night"),     # valeurs par défaut
+    ({"theme": "sepia", "autoTheme": True}, False, "light"),
+    ({"theme": "inconnu"}, False, "light"),                     # thème invalide -> Clair
+])
+def test_AFF10_effective_theme(core, s, dark, expected):
+    assert core("effectiveTheme", s, dark) == expected

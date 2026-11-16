@@ -102,6 +102,7 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | AFF-8 | **Plein écran** : quand l'appareil le permet (iPad dans Safari, ordinateur) et que l'app n'est pas déjà installée en plein écran, un bouton ⛶ active ou quitte le plein écran. Sinon, ce bouton est absent. |
 | AFF-9 | Lisibilité des nouveaux thèmes : le contraste texte/fond est d'au moins 7:1 (niveau AAA) pour chaque thème. **Nuit** : fond noir pur, texte gris clair atténué (contraste au plus 13:1, pour éviter l'éblouissement). **Nuit ambrée** : fond noir, texte ambre presque sans lumière bleue (composante bleue du texte au plus 40 % de la rouge). **Vert reposant** : fond vert pâle, texte vert foncé. |
 | AFF-10 | **Automatique jour/nuit** : une option fait suivre au thème le mode clair/sombre de l'iPhone, en direct, sans recharger. Elle mémorise un thème de jour (par défaut Clair) et un thème de nuit (par défaut Nuit). Choisir un thème pendant que l'option est active remplace le thème de la période en cours. L'option et les deux thèmes sont mémorisés. |
+| AFF-11 | Les curseurs (vitesse, barre de progression) restent visibles dans tous les thèmes : leur rail contraste d'au moins 3:1 avec le fond (critère WCAG pour les éléments d'interface), et le bouton du curseur est à la couleur d'accent du thème. |
 | AFF-5 | L'interface est utilisable sans défilement horizontal sur iPhone (375 px de large) comme sur iPad, en portrait et en paysage, en respectant les zones de sécurité (encoche, barre d'accueil). |
 
 ## 7. Hors connexion (OFF)
