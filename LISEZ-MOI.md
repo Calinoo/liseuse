@@ -31,12 +31,13 @@ Le dossier doit être mis en ligne en HTTPS, car iOS exige HTTPS pour le mode ho
 
 - **Écran qui se verrouille** : la Liseuse demande à garder l'écran allumé pendant le défilement. C'est pris en charge par les versions récentes d'iOS (18.4 et plus pour une app ajoutée à l'écran d'accueil). Sur une version plus ancienne, augmentez « Verrouillage automatique » dans Réglages > Luminosité et affichage.
 - **Livres protégés (DRM)** : les EPUB achetés sur Apple Books, Kindle ou Kobo avec protection ne peuvent pas être ouverts. Les EPUB sans DRM et les PDF fonctionnent.
-- **Mise à jour de l'app** : après avoir modifié les fichiers, changez `liseuse-v1` en `liseuse-v2` dans `sw.js`, puis remettez le dossier en ligne.
+- **Mise à jour de l'app** : après avoir modifié les fichiers, augmentez le numéro de version (`liseuse-v2` → `liseuse-v3`…) dans `sw.js`, puis remettez le dossier en ligne.
 - **Supprimer l'app de l'écran d'accueil efface aussi les livres qu'elle contient.**
 
 ## Contenu du dossier
 
-- `index.html`, `style.css`, `app.js` : l'application
+- `index.html`, `style.css`, `app.js` : l'application ; `core.js` : la logique pure, testée unitairement
+- `SPEC.md` : la spécification ; `tests/` et `test.sh` : la suite de régression
 - `sw.js`, `manifest.webmanifest`, `icons/` : installation et mode hors ligne
 - `vendor/` : pdf.js (Mozilla) et JSZip, embarqués pour fonctionner hors connexion
 
