@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Liseuse</title>
+<meta name="theme-color" content="#faf8f3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Liseuse">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Bibliothèque -->
+<main id="library" class="view">
+  <header class="lib-head">
+    <h1>Liseuse</h1>
+    <button id="addBtn" class="btn primary">+ Ajouter un livre</button>
+    <input type="file" id="fileInput" accept=".pdf,.epub,application/pdf,application/epub+zip" multiple hidden>
+  </header>
+  <ul id="bookList" class="book-list"></ul>
+  <div id="empty" class="empty">
+    <p><strong>Aucun livre pour l'instant.</strong></p>
+    <p>Touchez « Ajouter un livre » et choisissez un fichier PDF ou EPUB dans l'app Fichiers. Il sera copié dans la liseuse et restera lisible hors connexion.</p>
+  </div>
+</main>
+
+<!-- Lecteur -->
+<section id="readerView" class="view hidden">
+  <div id="scroller"><div id="content"></div></div>
+
+  <div id="topBar" class="bar top">
+    <button id="backBtn" class="icon-btn" aria-label="Retour à la bibliothèque">‹</button>
+    <div id="bookTitle" class="book-title"></div>
+    <span id="pct" class="pct">0 %</span>
+  </div>
+
+  <div id="bottomBar" class="bar bottom">
+    <button id="playBtn" class="play" aria-label="Lecture">▶</button>
+    <div class="speed">
+      <button id="slower" class="icon-btn small" aria-label="Plus lent">−</button>
+      <input type="range" id="speed" min="5" max="200" step="1" aria-label="Vitesse de défilement">
+      <button id="faster" class="icon-btn small" aria-label="Plus rapide">+</button>
+    </div>
+    <span id="speedVal" class="speed-val"></span>
+    <button id="settingsBtn" class="icon-btn" aria-label="Réglages d'affichage">Aa</button>
+  </div>
+
+  <div id="settings" class="sheet hidden">
+    <div class="row">
+      <span>Thème</span>
+      <div class="seg" id="themeSeg">
+        <button data-theme="light">Clair</button>
+        <button data-theme="sepia">Sépia</button>
+        <button data-theme="dark">Sombre</button>
+      </div>
+    </div>
+    <div class="row epub-only">
+      <span>Taille du texte</span>
+      <div class="stepper">
+        <button id="fontDown" class="icon-btn small">A−</button>
+        <span id="fontVal"></span>
+        <button id="fontUp" class="icon-btn small">A+</button>
+      </div>
+    </div>
+    <div class="row epub-only">
+      <span>Police</span>
+      <div class="seg" id="fontSeg">
+        <button data-font="serif">Serif</button>
+        <button data-font="sans">Sans</button>
+      </div>
+    </div>
+    <p class="hint">Touchez le texte pour lancer ou arrêter le défilement. Faites glisser pour avancer ou reculer à la main.</p>
+  </div>
+</section>
+
+<div id="loading" class="loading hidden"><div class="spinner"></div><span id="loadingText">Chargement…</span></div>
+
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

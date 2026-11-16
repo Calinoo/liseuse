@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+.pytest_cache/
+test-results/
+tests/fixtures/build/
+.DS_Store
