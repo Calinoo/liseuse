@@ -147,3 +147,22 @@ def test_PROG5_remaining_seconds(core, top, height, client, speed, expected):
 ])
 def test_PROG6_format_remaining(core, sec, expected):
     assert core("formatRemaining", sec) == expected
+
+
+# ---------- NAV-2 : retrouver la section / page à une position ----------
+@pytest.mark.parametrize("offsets, y, expected", [
+    ([0, 100, 250], 0, 0),
+    ([0, 100, 250], 99, 0),
+    ([0, 100, 250], 100, 1),
+    ([0, 100, 250], 9999, 2),
+    ([50, 100], 10, 0),      # avant la première section
+    ([], 10, -1),            # livre vide
+    ([0], 0, 0),
+])
+def test_NAV2_locate(core, offsets, y, expected):
+    assert core("locate", offsets, y) == expected
+
+
+@pytest.mark.parametrize("i, n, expected", [(0, 30, "Page 1 / 30"), (29, 30, "Page 30 / 30")])
+def test_NAV2_page_label(core, i, n, expected):
+    assert core("pageLabel", i, n) == expected

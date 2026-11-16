@@ -173,3 +173,58 @@ def test_AFF6_rotation_keeps_position(app, books, name, title):
         app.set_viewport_size(size)
         app.wait_for_timeout(700)
         assert ratio(app) == pytest.approx(0.4, abs=0.01), size
+
+
+def test_AFF7_immersive_status_bar_and_full_bleed(app, books):
+    assert app.locator("meta[name=apple-mobile-web-app-status-bar-style]").get_attribute("content") \
+        == "black-translucent"
+    assert "viewport-fit=cover" in app.locator("meta[name=viewport]").get_attribute("content")
+    _open_epub(app, books)
+    box = app.locator("#scroller").bounding_box()
+    vp = app.viewport_size
+    assert box["y"] == 0 and box["height"] == vp["height"], "le texte doit couvrir tout l'écran"
+
+
+FS_STUB = """
+    window.__fs = [];
+    Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, get: () => %s });
+    Object.defineProperty(document, 'webkitFullscreenEnabled', { configurable: true, get: () => %s });
+    Element.prototype.requestFullscreen = function () { window.__fs.push('enter'); return Promise.resolve(); };
+    Element.prototype.webkitRequestFullscreen = Element.prototype.requestFullscreen;
+"""
+
+
+def _page_with(ctx, base_url, script):
+    page = ctx.new_page()
+    page.add_init_script(script)
+    page.goto(base_url + "/index.html")
+    page.wait_for_function("window.LiseuseApp && window.LiseuseApp.ready")
+    return page
+
+
+def test_AFF8_fullscreen_button_when_supported(ctx, base_url, books):
+    page = _page_with(ctx, base_url, FS_STUB % ("true", "true"))
+    import_books(page, books, "sample.epub")
+    open_book(page, "Mon livre de test")
+    assert page.locator("#fsBtn").is_visible()
+    page.locator("#fsBtn").click()
+    page.wait_for_function("window.__fs.length === 1")
+
+
+def test_AFF8_no_fullscreen_button_when_unsupported(ctx, base_url, books):
+    page = _page_with(ctx, base_url, FS_STUB % ("false", "false"))
+    import_books(page, books, "sample.epub")
+    open_book(page, "Mon livre de test")
+    assert not page.locator("#fsBtn").is_visible()
+
+
+def test_AFF8_no_fullscreen_button_when_installed(ctx, base_url, books):
+    script = FS_STUB % ("true", "true") + """
+        const mm = window.matchMedia.bind(window);
+        window.matchMedia = q => q.includes('display-mode') ? { matches: true, media: q,
+            addEventListener() {}, removeEventListener() {} } : mm(q);
+    """
+    page = _page_with(ctx, base_url, script)
+    import_books(page, books, "sample.epub")
+    open_book(page, "Mon livre de test")
+    assert not page.locator("#fsBtn").is_visible()

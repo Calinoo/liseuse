@@ -113,7 +113,23 @@
     return `~${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`;
   }
 
+  // NAV-2 : indice de la dernière section/page dont le début est <= y (offsets triés)
+  function locate(offsets, y) {
+    if (!offsets.length) return -1;
+    let lo = 0, hi = offsets.length - 1, ans = 0;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (offsets[mid] <= y) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+    }
+    return ans;
+  }
+
+  function pageLabel(i, n) {
+    return `Page ${i + 1} / ${n}`;
+  }
+
   const Core = {
+    locate, pageLabel,
     SPEED_MIN, SPEED_MAX, SPEED_DEFAULT, FONT_MIN, FONT_MAX,
     detectType, titleFromFilename, formatSize, dirOf, resolvePath, mimeOf, linkTarget,
     clampSpeed, speedStep, clampFontSize, progressRatio, remainingSeconds, formatRemaining,

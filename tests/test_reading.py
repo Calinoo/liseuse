@@ -82,7 +82,8 @@ def test_EPUB3_book_cannot_run_code_or_restyle(app, books):
 def test_EPUB4_internal_link_jumps_and_pauses(app, books):
     _open_epub(app, books)
     app.locator("#playBtn").click()
-    app.locator("#c0-lien-fin").click()
+    # Le texte glisse en continu (DEF-9) : le lien n'est jamais « immobile », on clique sans attendre.
+    app.locator("#c0-lien-fin").click(force=True)
     assert app.locator("#playBtn").get_attribute("aria-label") == "Lecture"
     top = app.evaluate(f"document.getElementById('c2-fin').getBoundingClientRect().top "
                        f"- {SCROLL}.getBoundingClientRect().top")

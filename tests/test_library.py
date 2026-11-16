@@ -79,3 +79,28 @@ def test_BIB8_books_survive_reload(app, books):
     app.reload()
     app.wait_for_function("window.LiseuseApp && window.LiseuseApp.ready")
     assert sorted(library_titles(app)) == ["Mon livre de test", "sample"]
+
+
+def test_BIB9_same_file_not_duplicated(app, books):
+    import_books(app, books, "sample.pdf")
+    app.set_input_files("#fileInput", [books("sample.pdf")])
+    wait_dialog(app, "déjà")
+    assert app.locator(".book").count() == 1
+    h = stored_books(app)[0]["hash"]
+    assert len(h) == 64 and all(c in "0123456789abcdef" for c in h)
+
+
+def test_BIB9_old_books_get_fingerprint_on_open(app, books):
+    import_books(app, books, "sample.pdf")
+    app.evaluate("""() => new Promise(res => {
+        const r = indexedDB.open('liseuse');
+        r.onsuccess = () => {
+            const st = r.result.transaction('books', 'readwrite').objectStore('books');
+            st.getAll().onsuccess = e => { const b = e.target.result[0]; delete b.hash;
+                st.put(b).onsuccess = () => { r.result.close(); res(); }; };
+        };
+    })""")
+    assert "hash" not in stored_books(app)[0]
+    open_book(app, "sample")
+    back_to_library(app)
+    assert len(stored_books(app)[0]["hash"]) == 64

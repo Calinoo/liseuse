@@ -19,6 +19,7 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | BIB-6 | Chaque livre affiche : son type, son titre, le pourcentage lu, sa taille (« 15 Ko », « 1,2 Mo ») et une barre de progression. |
 | BIB-7 | Le bouton ✕ retire le livre après confirmation. En cas d'annulation, rien ne change. |
 | BIB-8 | Les livres et leur progression survivent à un rechargement de l'app (stockage IndexedDB local). |
+| BIB-9 | Chaque livre reçoit une empreinte de son contenu (SHA-256), calculée à l'import, ou à la première ouverture pour les livres importés avant cette version. Réimporter un fichier identique ne crée pas de doublon : un message indique qu'il est déjà dans la bibliothèque. *(Prépare la synchronisation : un même livre a la même empreinte sur l'iPhone et l'iPad.)* |
 
 ## 2. Lecture PDF (PDF)
 
@@ -52,6 +53,8 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | DEF-6 | Pendant le défilement, les barres se masquent après 2 s. À la pause, elles réapparaissent. |
 | DEF-7 | Quand l'app passe en arrière-plan, le défilement se met en pause et la position est enregistrée. |
 | DEF-8 | Pendant le défilement, l'app demande à garder l'écran allumé (Wake Lock) si l'appareil le permet, et libère cette demande à la pause. |
+| DEF-9 | **Fluidité** : pendant le défilement, le texte avance d'une quantité régulière à chaque image (au sous-pixel près), sans alterner « 1 px / 0 px ». À 30 px/s et 60 images/s, chaque image avance de 0,5 px (± 0,08). |
+| DEF-10 | Pendant le défilement, aucun travail coûteux n'est fait à chaque image : les barres masquées ne sont plus dessinées (`visibility: hidden`), et le pourcentage et le temps restant sont rafraîchis au plus 4 fois par seconde. |
 
 ## 5. Progression (PROG)
 
@@ -65,6 +68,15 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | PROG-6 | Format du temps restant : `Terminé` s'il reste moins d'une demi-seconde ; `< 1 min` sous 60 s ; `~N min` sous 1 h (arrondi à la minute la plus proche) ; `~H h MM` au-delà (minutes sur 2 chiffres). |
 | PROG-7 | Le temps restant se met à jour quand la position ou la vitesse change. |
 
+## 5 bis. Navigation rapide (NAV)
+
+| ID | Exigence |
+|---|---|
+| NAV-1 | Quand les barres sont visibles, une barre de progression (0 à 100 %) permet de sauter n'importe où dans le livre en la faisant glisser. |
+| NAV-2 | Pendant le glissement, le défilement automatique se met en pause et une étiquette indique où l'on arrive : pour un EPUB, le titre du chapitre (premier titre de la section, sinon « Chapitre n ») ; pour un PDF, « Page n / N ». |
+| NAV-3 | La barre de progression suit la lecture : elle reflète la progression actuelle (PROG-1). |
+| NAV-4 | Après un saut, la nouvelle position est enregistrée (PROG-3). |
+
 ## 6. Affichage (AFF)
 
 | ID | Exigence |
@@ -74,6 +86,8 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | AFF-3 | Changer la taille ou la police conserve la position de lecture (à 2 % près). |
 | AFF-4 | Tous les réglages d'affichage sont mémorisés entre les sessions. |
 | AFF-6 | Après une rotation de l'appareil (ou un redimensionnement de la fenêtre), la position de lecture est conservée à 1 % près, pour les EPUB comme pour les PDF (voir aussi PDF-4). |
+| AFF-7 | **Mode immersif** : le texte occupe tout l'écran, y compris sous la barre d'état de l'iPhone (heure, batterie), qui devient transparente. Les barres de l'app se masquent pendant la lecture. *(Limite d'iOS : une app web ne peut pas masquer l'heure et la batterie.)* |
+| AFF-8 | **Plein écran** : quand l'appareil le permet (iPad dans Safari, ordinateur) et que l'app n'est pas déjà installée en plein écran, un bouton ⛶ active ou quitte le plein écran. Sinon, ce bouton est absent. |
 | AFF-5 | L'interface est utilisable sans défilement horizontal sur iPhone (375 px de large) comme sur iPad, en portrait et en paysage, en respectant les zones de sécurité (encoche, barre d'accueil). |
 
 ## 7. Hors connexion (OFF)
@@ -87,4 +101,4 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 ---
 
 ## Hors périmètre (pour l'instant)
-EPUB protégés par DRM, synchronisation entre appareils, annotations, recherche dans le texte, mise en page fixe (EPUB « fixed layout »).
+EPUB protégés par DRM, synchronisation entre appareils (prévue dans un second temps : le choix de la technique reste à faire), annotations, recherche dans le texte, mise en page fixe (EPUB « fixed layout »).

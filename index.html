@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#faf8f3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Liseuse">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
@@ -37,6 +37,7 @@
   <div id="topBar" class="bar top">
     <button id="backBtn" class="icon-btn" aria-label="Retour à la bibliothèque">‹</button>
     <div id="bookTitle" class="book-title"></div>
+    <button id="fsBtn" class="icon-btn hidden" aria-label="Plein écran">⛶</button>
     <div class="stats" aria-live="off">
       <span id="pct" class="pct">0 %</span>
       <span id="remaining" class="remaining" title="Temps de lecture restant à cette vitesse"></span>
@@ -44,6 +45,10 @@
   </div>
 
   <div id="bottomBar" class="bar bottom">
+    <div class="seek-row">
+      <input type="range" id="seek" min="0" max="1000" step="1" value="0" aria-label="Aller à une position du livre">
+      <span id="seekLabel" class="seek-label hidden"></span>
+    </div>
     <button id="playBtn" class="play" aria-label="Lecture">▶</button>
     <div class="speed">
       <button id="slower" class="icon-btn small" aria-label="Plus lent">−</button>

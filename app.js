@@ -16,6 +16,7 @@ const state = {
   lastSave: 0, saveTimer: null, hideTimer: null, touchTimer: null,
   objectUrls: [], pdf: null, pages: [], observer: null, wakeLock: null,
   ratio: 0, resizing: false, resizeTimer: null,
+  base: 0, lastStats: 0, seeking: false, seekTimer: null,
 };
 
 /* ---------- Réglages ---------- */
@@ -113,7 +114,10 @@ async function importFiles(files) {
       const buf = await f.arrayBuffer();
       let title = Core.titleFromFilename(f.name);
       if (type === 'epub') { try { title = (await epubTitle(buf)) || title; } catch {} }
-      await addBook({ id: uid(), title, type, size: f.size, added: Date.now(), lastOpened: 0, progress: 0 }, buf);
+      const hash = await fingerprint(buf);
+      const twin = hash && (await getAllBooks()).find((b) => b.hash === hash);
+      if (twin) { alert(`« ${twin.title} » est déjà dans la bibliothèque.`); continue; }
+      await addBook({ id: uid(), title, type, size: f.size, added: Date.now(), lastOpened: 0, progress: 0, hash }, buf);
     } catch (err) {
       alert(`Impossible d'importer « ${f.name} » : ${err.message}`);
     }
@@ -122,12 +126,21 @@ async function importFiles(files) {
   renderLibrary();
 }
 
+// BIB-9 : empreinte SHA-256 du contenu (identique sur tous les appareils, prépare la synchro)
+async function fingerprint(buf) {
+  try {
+    const d = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
+  } catch { return null; }
+}
+
 /* ---------- Ouverture / fermeture ---------- */
 async function openBook(id) {
   const b = (await getAllBooks()).find((x) => x.id === id);
   if (!b) return;
   showLoading('Ouverture…');
   const buf = await getFile(id);
+  if (!b.hash) b.hash = await fingerprint(buf); // livres importés avant BIB-9 (avant que pdf.js ne s'approprie buf)
   state.book = b;
   content.innerHTML = '';
   content.className = b.type;
@@ -149,7 +162,8 @@ async function openBook(id) {
   hideLoading();
   b.lastOpened = Date.now();
   putBook(b).catch(() => {});
-  updatePct();
+  updateFsButton();
+  updatePct(true);
   showBars();
 }
 
@@ -178,8 +192,9 @@ function currentRatio() {
 }
 function restoreRatio(r) {
   const max = scroller.scrollHeight - scroller.clientHeight;
+  clearSubpixel();
   scroller.scrollTop = Math.round(r * max);
-  state.pos = scroller.scrollTop;
+  state.pos = state.base = scroller.scrollTop;
   state.ratio = r;
 }
 function saveProgress() {
@@ -190,11 +205,17 @@ function saveProgress() {
   state.lastSave = Date.now();
   return putBook(state.book).catch(() => {});
 }
-// PROG-2, PROG-5, PROG-6, PROG-7
-function updatePct() {
-  $('#pct').textContent = Math.round(currentRatio() * 100) + ' %';
-  $('#remaining').textContent = Core.formatRemaining(
-    Core.remainingSeconds(scroller.scrollTop, scroller.scrollHeight, scroller.clientHeight, settings.speed));
+// PROG-2, PROG-5, PROG-6, PROG-7, NAV-3. DEF-10 : au plus 4 fois par seconde pendant la lecture.
+function setText(el, t) { if (el.textContent !== t) el.textContent = t; }
+function updatePct(force) {
+  const now = performance.now();
+  if (!force && state.playing && now - state.lastStats < 250) return;
+  state.lastStats = now;
+  const r = currentRatio();
+  setText($('#pct'), Math.round(r * 100) + ' %');
+  setText($('#remaining'), Core.formatRemaining(
+    Core.remainingSeconds(scroller.scrollTop, scroller.scrollHeight, scroller.clientHeight, settings.speed)));
+  if (!state.seeking) seekInput.value = Math.round(r * 1000);
 }
 
 scroller.addEventListener('scroll', () => {
@@ -219,7 +240,7 @@ function play() {
   if (state.playing || !state.book) return;
   if (atEnd()) return;
   state.playing = true;
-  state.pos = scroller.scrollTop;
+  state.pos = state.base = scroller.scrollTop;
   state.last = 0;
   playBtn.textContent = '❚❚';
   playBtn.setAttribute('aria-label', 'Pause');
@@ -234,7 +255,9 @@ function pause() {
   playBtn.textContent = '▶';
   playBtn.setAttribute('aria-label', 'Lecture');
   releaseWake();
+  clearSubpixel();
   showBars();
+  updatePct(true);
   saveProgress();
 }
 function tick(t) {
@@ -242,9 +265,10 @@ function tick(t) {
   if (state.last && !state.touching) {
     const dt = Math.min(t - state.last, 100) / 1000;
     // L'utilisateur a fait défiler à la main : on repart de sa position
-    if (Math.abs(scroller.scrollTop - state.pos) > 3) state.pos = scroller.scrollTop;
+    const top = scroller.scrollTop;
+    if (Math.abs(top - state.base) > 1) state.pos = top;
     state.pos += settings.speed * dt;
-    scroller.scrollTop = state.pos;
+    setVisual(state.pos);
     if (atEnd()) { pause(); return; }
   }
   state.last = t;
@@ -252,8 +276,19 @@ function tick(t) {
 }
 playBtn.addEventListener('click', () => (state.playing ? pause() : play()));
 
+// DEF-9 : iOS arrondit scrollTop au pixel, d'où des à-coups (1 px, 0, 1 px…).
+// On défile donc de la partie entière, et on décale le texte de la partie
+// décimale avec une transformation GPU : le mouvement devient continu.
+function setVisual(pos) {
+  const base = Math.floor(pos);
+  if (base !== state.base) { scroller.scrollTop = base; state.base = base; }
+  const frac = pos - base;
+  content.style.transform = frac > 0.001 ? `translate3d(0, ${(-frac).toFixed(3)}px, 0)` : '';
+}
+function clearSubpixel() { content.style.transform = ''; }
+
 // Glisser le doigt suspend le défilement, qui reprend tout seul après
-scroller.addEventListener('touchstart', () => { state.touching = true; clearTimeout(state.touchTimer); }, { passive: true });
+scroller.addEventListener('touchstart', () => { state.touching = true; clearSubpixel(); clearTimeout(state.touchTimer); }, { passive: true });
 const endTouch = () => { clearTimeout(state.touchTimer); state.touchTimer = setTimeout(() => { state.touching = false; }, 700); };
 scroller.addEventListener('touchend', endTouch, { passive: true });
 scroller.addEventListener('touchcancel', endTouch, { passive: true });
@@ -289,7 +324,7 @@ function setSpeed(v) {
   speedInput.value = settings.speed;
   $('#speedVal').textContent = settings.speed;
   saveSettings();
-  if (state.book) updatePct();
+  if (state.book) updatePct(true);
 }
 const step = () => Core.speedStep(settings.speed);
 speedInput.addEventListener('input', () => setSpeed(+speedInput.value));
@@ -297,6 +332,58 @@ $('#slower').addEventListener('click', () => { setSpeed(settings.speed - step())
 $('#faster').addEventListener('click', () => { setSpeed(settings.speed + step()); if (state.playing) scheduleHide(); });
 ['pointerdown', 'touchstart'].forEach((ev) => $('#bottomBar').addEventListener(ev, () => clearTimeout(state.hideTimer), { passive: true }));
 ['pointerup', 'touchend'].forEach((ev) => $('#bottomBar').addEventListener(ev, () => { if (state.playing) scheduleHide(); }, { passive: true }));
+
+/* ---------- Navigation rapide (NAV-1..4) ---------- */
+const seekInput = $('#seek');
+const seekLabel = $('#seekLabel');
+function sectionLabel(y) {
+  const probe = y + scroller.clientHeight / 3;
+  if (state.pdf) {
+    const i = Core.locate(state.pages.map((st) => st.el.offsetTop), probe);
+    return Core.pageLabel(Math.max(0, i), state.pages.length);
+  }
+  const secs = Array.from(content.querySelectorAll('.chapter'));
+  const i = Core.locate(secs.map((s) => s.offsetTop), probe);
+  if (i < 0) return '';
+  const h = secs[i].querySelector('h1, h2, h3');
+  const t = h && h.textContent.trim().replace(/\s+/g, ' ');
+  return t ? (t.length > 60 ? t.slice(0, 57) + '…' : t) : `Chapitre ${i + 1}`;
+}
+function startSeek() {
+  pause();
+  state.seeking = true;
+  clearTimeout(state.seekTimer);
+  seekLabel.classList.remove('hidden');
+}
+seekInput.addEventListener('pointerdown', startSeek);
+seekInput.addEventListener('touchstart', startSeek, { passive: true });
+seekInput.addEventListener('input', () => {
+  if (!state.seeking) startSeek();
+  const r = seekInput.value / 1000;
+  restoreRatio(r);
+  seekLabel.textContent = sectionLabel(scroller.scrollTop);
+  updatePct(true);
+});
+seekInput.addEventListener('change', () => {
+  state.seeking = false;
+  saveProgress();
+  clearTimeout(state.seekTimer);
+  state.seekTimer = setTimeout(() => seekLabel.classList.add('hidden'), 1200);
+});
+
+/* ---------- Plein écran (AFF-8) ---------- */
+const fsBtn = $('#fsBtn');
+function isInstalled() {
+  return navigator.standalone === true ||
+    ['standalone', 'fullscreen'].some((m) => window.matchMedia(`(display-mode: ${m})`).matches);
+}
+function fsSupported() { return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled); }
+function updateFsButton() { fsBtn.classList.toggle('hidden', !fsSupported() || isInstalled()); }
+fsBtn.addEventListener('click', () => {
+  const d = document, el = d.documentElement;
+  if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+  else (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+});
 
 /* ---------- Affichage ---------- */
 function applySettings() {

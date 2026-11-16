@@ -148,3 +148,57 @@ def test_DEF8_wake_lock_requested_and_released(ctx, base_url, books):
     tap_text(page)
     page.wait_for_function("window.__wake.length === 2")
     assert page.evaluate("window.__wake") == ["request:screen", "release"]
+
+
+def content_top(page):
+    return page.evaluate("document.getElementById('content').getBoundingClientRect().top")
+
+
+@pytest.mark.parametrize("speed", [30, 12])
+def test_DEF9_smooth_subpixel_motion(reading, speed):
+    """À chaque image, le texte avance de vitesse × durée de l'image : pas d'alternance 1 px / 0 px."""
+    set_speed(reading, speed)
+    tap_text(reading)
+    reading.clock.run_for(200)  # mise en route
+    reading.evaluate("""() => {
+        window.__frames = [];
+        const c = document.getElementById('content');
+        (function rec(t) {
+            window.__frames.push([t, c.getBoundingClientRect().top]);
+            if (window.__frames.length < 60) requestAnimationFrame(rec);
+        })(performance.now());
+    }""")
+    reading.clock.run_for(1200)
+    frames = reading.evaluate("window.__frames")[1:]
+    assert len(frames) > 40
+    bad = []
+    for (t0, y0), (t1, y1) in zip(frames, frames[1:]):
+        dt = (t1 - t0) / 1000
+        moved = y0 - y1
+        if dt > 0 and abs(moved - speed * dt) > 0.08:
+            bad.append((round(dt * 1000), round(moved, 3)))
+    assert not bad, f"images irrégulières (ms, px) : {bad[:10]}"
+
+
+def test_DEF10_hidden_bars_not_drawn_while_playing(reading):
+    tap_text(reading)
+    reading.clock.run_for(3000)
+    reading.wait_for_timeout(400)  # fin du fondu CSS (temps réel, non simulé)
+    for sel in ["#topBar", "#bottomBar"]:
+        assert reading.evaluate(f"getComputedStyle(document.querySelector('{sel}')).visibility") == "hidden", sel
+    tap_text(reading)
+    for sel in ["#topBar", "#bottomBar"]:
+        assert reading.evaluate(f"getComputedStyle(document.querySelector('{sel}')).visibility") == "visible", sel
+
+
+def test_DEF10_stats_refreshed_at_most_4_times_per_second(reading):
+    reading.evaluate("""() => {
+        window.__writes = 0;
+        new MutationObserver(m => { window.__writes += m.length; })
+            .observe(document.getElementById('pct'), { childList: true, characterData: true, subtree: true });
+    }""")
+    set_speed(reading, 200)
+    tap_text(reading)
+    reading.clock.run_for(2000)
+    writes = reading.evaluate("window.__writes")
+    assert 1 <= writes <= 9, f"{writes} mises à jour du pourcentage en 2 s"
