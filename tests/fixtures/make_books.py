@@ -87,7 +87,9 @@ def make_epub(path, title="Mon livre de test", with_container=True):
         ch2 = '<h1>Chapitre 2</h1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ' \
               'viewBox="0 0 40 30" width="100%"><image id="svgimg" width="40" height="30" ' \
               'xlink:href="../Images/ma%20photo.png"/></svg>' + paras(2)
-        ch3 = "<h1>Chapitre 3</h1>" + paras(3) + '<p id="fin">Fin du livre.</p>'
+        ch3 = ("<h1>Chapitre 3</h1>" + paras(3)
+               + '<p id="special">L’été  dernier, une <em>baleine</em> Élégante passa.</p>'
+               + '<p id="fin">Fin du livre.</p>')
         for name, body in (("ch1", ch1), ("ch2", ch2), ("ch3", ch3)):
             z.writestr(f"OEBPS/Text/{name}.xhtml", xhtml(name, body))
         z.writestr("OEBPS/Styles/evil.css", "body { display: none !important; }")
@@ -108,10 +110,29 @@ def make_epub(path, title="Mon livre de test", with_container=True):
                    '<spine><itemref idref="c1"/><itemref idref="c2"/><itemref idref="c3"/></spine></package>')
 
 
+def make_pdf_without_text(path):
+    """Une page « scannée » : uniquement un dessin, aucun texte (SRCH-6)."""
+    stream = "0 0 1 rg 100 100 300 400 re f"
+    objs = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
+            f"<< /Length {len(stream)} >>\nstream\n{stream}\nendstream",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 3 0 R >>"]
+    out, offs = b"%PDF-1.4\n", []
+    for i, o in enumerate(objs, 1):
+        offs.append(len(out))
+        out += f"{i} 0 obj\n{o}\nendobj\n".encode()
+    xref = len(out)
+    out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode()
+    out += "".join(f"{o:010d} 00000 n \n" for o in offs).encode()
+    out += f"trailer << /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    with open(path, "wb") as f:
+        f.write(out)
+
+
 def build():
     os.makedirs(BUILD, exist_ok=True)
     make_pdf(os.path.join(BUILD, "sample.pdf"), 5)
     make_pdf(os.path.join(BUILD, "long.pdf"), 30)
+    make_pdf_without_text(os.path.join(BUILD, "scan.pdf"))
     with open(os.path.join(BUILD, "corrupt.pdf"), "wb") as f:
         f.write(b"%PDF-1.4\nceci n'est pas un vrai PDF\n")
     make_epub(os.path.join(BUILD, "sample.epub"))

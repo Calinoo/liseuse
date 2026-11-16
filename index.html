@@ -37,6 +37,9 @@
   <div id="topBar" class="bar top">
     <button id="backBtn" class="icon-btn" aria-label="Retour à la bibliothèque">‹</button>
     <div id="bookTitle" class="book-title"></div>
+    <button id="searchBtn" class="icon-btn" aria-label="Rechercher dans le livre">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5 21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+    </button>
     <button id="fsBtn" class="icon-btn hidden" aria-label="Plein écran">⛶</button>
     <div class="stats" aria-live="off">
       <span id="pct" class="pct">0 %</span>
@@ -57,6 +60,15 @@
     </div>
     <span id="speedVal" class="speed-val"></span>
     <button id="settingsBtn" class="icon-btn" aria-label="Réglages d'affichage">Aa</button>
+  </div>
+
+  <div id="searchPanel" class="search-panel hidden" role="dialog" aria-label="Recherche dans le livre">
+    <div class="search-head">
+      <input type="search" id="searchInput" placeholder="Rechercher dans le livre" autocomplete="off" autocorrect="off" enterkeyhint="search">
+      <button id="searchClose" class="icon-btn" aria-label="Fermer la recherche">✕</button>
+    </div>
+    <p id="searchStatus" class="search-status"></p>
+    <ul id="searchResults" class="search-results"></ul>
   </div>
 
   <div id="settings" class="sheet hidden">

@@ -77,17 +77,31 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | NAV-3 | La barre de progression suit la lecture : elle reflète la progression actuelle (PROG-1). |
 | NAV-4 | Après un saut, la nouvelle position est enregistrée (PROG-3). |
 
+## 5 ter. Recherche dans le livre (SRCH)
+
+| ID | Exigence |
+|---|---|
+| SRCH-1 | Une loupe 🔍 dans la barre du haut ouvre le panneau de recherche, avec le champ de saisie prêt à taper. L'ouvrir met le défilement en pause. |
+| SRCH-2 | La recherche ignore les majuscules, les accents et le type d'apostrophe (« elegante » trouve « Élégante », « l'ete » trouve « L’été »). Les espaces multiples comptent pour un seul. Un mot coupé par une mise en forme (italique…) est trouvé quand même. Elle démarre à partir de 2 caractères (sinon le message « Tapez au moins 2 caractères » s'affiche). |
+| SRCH-3 | Chaque résultat affiche un extrait (environ 40 caractères de contexte de chaque côté, le passage trouvé mis en évidence) et son emplacement : le titre du chapitre pour un EPUB, « Page n / N » pour un PDF. Le nombre de résultats s'affiche (« 1 résultat », « 12 résultats », « Aucun résultat »). |
+| SRCH-4 | Au-delà de 200 résultats, seuls les 200 premiers sont listés et le compteur affiche « 200+ résultats ». |
+| SRCH-5 | Toucher un résultat ferme le panneau, amène le passage au tiers supérieur de l'écran (dans la limite de la fin du livre) et le surligne pendant quelques secondes. La position est enregistrée. |
+| SRCH-6 | Un PDF sans texte (page scannée) affiche « Ce PDF ne contient pas de texte cherchable ». |
+| SRCH-7 | Le bouton ✕ ou la touche Échap ferme le panneau. En le rouvrant, la recherche précédente et ses résultats sont toujours là (tant que le livre reste ouvert). |
+
 ## 6. Affichage (AFF)
 
 | ID | Exigence |
 |---|---|
-| AFF-1 | Trois thèmes : Clair, Sépia, Sombre. Ils s'appliquent à toute l'app, PDF compris (le mode sombre inverse les couleurs des pages). |
+| AFF-1 | Six thèmes : **Clair**, **Sépia**, **Vert reposant** (clairs) et **Sombre**, **Nuit**, **Nuit ambrée** (sombres). Ils s'appliquent à toute l'app, PDF compris : avec un thème sombre, les pages PDF sont inversées (teinte ambrée pour Nuit ambrée). |
 | AFF-2 | EPUB : taille du texte de 13 à 34 px (19 par défaut) ; police Serif ou Sans. Ces réglages sont masqués pour les PDF. |
 | AFF-3 | Changer la taille ou la police conserve la position de lecture (à 2 % près). |
 | AFF-4 | Tous les réglages d'affichage sont mémorisés entre les sessions. |
 | AFF-6 | Après une rotation de l'appareil (ou un redimensionnement de la fenêtre), la position de lecture est conservée à 1 % près, pour les EPUB comme pour les PDF (voir aussi PDF-4). |
 | AFF-7 | **Mode immersif** : le texte occupe tout l'écran, y compris sous la barre d'état de l'iPhone (heure, batterie), qui devient transparente. Les barres de l'app se masquent pendant la lecture. *(Limite d'iOS : une app web ne peut pas masquer l'heure et la batterie.)* |
 | AFF-8 | **Plein écran** : quand l'appareil le permet (iPad dans Safari, ordinateur) et que l'app n'est pas déjà installée en plein écran, un bouton ⛶ active ou quitte le plein écran. Sinon, ce bouton est absent. |
+| AFF-9 | Lisibilité des nouveaux thèmes : le contraste texte/fond est d'au moins 7:1 (niveau AAA) pour chaque thème. **Nuit** : fond noir pur, texte gris clair atténué (contraste au plus 13:1, pour éviter l'éblouissement). **Nuit ambrée** : fond noir, texte ambre presque sans lumière bleue (composante bleue du texte au plus 40 % de la rouge). **Vert reposant** : fond vert pâle, texte vert foncé. |
+| AFF-10 | **Automatique jour/nuit** : une option fait suivre au thème le mode clair/sombre de l'iPhone, en direct, sans recharger. Elle mémorise un thème de jour (par défaut Clair) et un thème de nuit (par défaut Nuit). Choisir un thème pendant que l'option est active remplace le thème de la période en cours. L'option et les deux thèmes sont mémorisés. |
 | AFF-5 | L'interface est utilisable sans défilement horizontal sur iPhone (375 px de large) comme sur iPad, en portrait et en paysage, en respectant les zones de sécurité (encoche, barre d'accueil). |
 
 ## 7. Hors connexion (OFF)

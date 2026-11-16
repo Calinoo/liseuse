@@ -56,6 +56,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
   -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
 }
+#content { position: relative; }
 #content.pdf { padding: calc(var(--safe-t) + 56px) var(--safe-r) 45vh var(--safe-l); display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .page { width: 100%; max-width: 1000px; background: #fff; position: relative; filter: var(--pdf-filter); }
 .page canvas { display: block; width: 100%; height: 100%; }
@@ -122,6 +123,28 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .stepper span { min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
 .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
 .is-pdf .epub-only { display: none; }
+
+/* ---------- Recherche (SRCH) ---------- */
+#searchBtn { display: grid; place-items: center; }
+.search-panel {
+  position: absolute; inset: 0; z-index: 8; background: var(--bg); display: flex; flex-direction: column;
+  padding: calc(var(--safe-t) + 8px) calc(var(--safe-r) + 12px) 0 calc(var(--safe-l) + 12px);
+}
+.search-head { display: flex; gap: 8px; align-items: center; }
+#searchInput {
+  flex: 1; min-width: 0; font: inherit; font-size: 17px; padding: 10px 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--card); color: var(--fg); -webkit-appearance: none;
+}
+#searchInput:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.search-status { color: var(--muted); font-size: 14px; margin: 10px 4px; min-height: 1.2em; }
+.search-results { list-style: none; margin: 0; padding: 0 0 calc(var(--safe-b) + 20px); overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1; }
+.search-results li { padding: 12px 6px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.search-results li:active { background: var(--line); }
+.search-results .loc { display: block; font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 3px; }
+.search-results .snip { font-size: 15px; line-height: 1.4; }
+.search-results mark, .search-hit { background: rgba(255, 196, 0, .55); color: inherit; border-radius: 3px; }
+.search-hit { position: absolute; pointer-events: none; z-index: 2; animation: hitfade 3.5s ease forwards; }
+@keyframes hitfade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 
 .loading {
   position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; gap: 14px;

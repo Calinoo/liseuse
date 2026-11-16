@@ -142,6 +142,7 @@ async function openBook(id) {
   const buf = await getFile(id);
   if (!b.hash) b.hash = await fingerprint(buf); // livres importés avant BIB-9 (avant que pdf.js ne s'approprie buf)
   state.book = b;
+  resetSearch();
   content.innerHTML = '';
   content.className = b.type;
   readerView.classList.toggle('is-pdf', b.type === 'pdf');
@@ -170,6 +171,8 @@ async function openBook(id) {
 // BIB-5 : on enregistre et on prépare la liste AVANT de l'afficher (pas d'ordre périmé à l'écran)
 async function closeBook() {
   pause();
+  closeSearch();
+  resetSearch();
   const saving = saveProgress();
   if (state.observer) state.observer.disconnect();
   state.pages.forEach(releasePage);
@@ -370,6 +373,182 @@ seekInput.addEventListener('change', () => {
   clearTimeout(state.seekTimer);
   state.seekTimer = setTimeout(() => seekLabel.classList.add('hidden'), 1200);
 });
+
+/* ---------- Recherche (SRCH-1..7) ---------- */
+const searchPanel = $('#searchPanel'), searchInput = $('#searchInput');
+const searchStatus = $('#searchStatus'), searchResults = $('#searchResults');
+const SEARCH_MAX = 200;
+const search = { index: null, building: null, timer: null, token: 0 };
+
+function resetSearch() {
+  search.index = null; search.building = null; search.token++;
+  searchInput.value = '';
+  setSearchStatus('', '');
+  searchResults.innerHTML = '';
+}
+function setSearchStatus(text, query) {
+  searchStatus.textContent = text;
+  searchStatus.dataset.query = query;
+}
+function openSearch() {
+  pause();
+  closeSettings();
+  searchPanel.classList.remove('hidden');
+  searchInput.focus();
+}
+function closeSearch() { searchPanel.classList.add('hidden'); searchInput.blur(); }
+$('#searchBtn').addEventListener('click', openSearch);
+$('#searchClose').addEventListener('click', closeSearch);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !searchPanel.classList.contains('hidden')) closeSearch();
+});
+searchInput.addEventListener('input', () => {
+  clearTimeout(search.timer);
+  search.timer = setTimeout(runSearch, 200);
+});
+searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { clearTimeout(search.timer); runSearch(); searchInput.blur(); } });
+
+function chapterTitle(sec, i) {
+  const h = sec.querySelector('h1, h2, h3');
+  const t = h && h.textContent.trim().replace(/\s+/g, ' ');
+  return t ? (t.length > 60 ? t.slice(0, 57) + '…' : t) : `Chapitre ${i + 1}`;
+}
+
+// Index du texte, construit une seule fois par livre ouvert
+const BLOCK = 'p,div,h1,h2,h3,h4,h5,h6,li,blockquote,section,td,th,pre,dt,dd,figcaption';
+async function buildIndex() {
+  const units = [];
+  if (state.pdf) {
+    const n = state.pages.length;
+    for (let i = 0; i < n; i++) {
+      if (i % 5 === 0) setSearchStatus(`Préparation de la recherche… page ${i + 1}/${n}`, '');
+      const st = state.pages[i];
+      const tc = await st.page.getTextContent();
+      let text = '';
+      const parts = [];
+      for (const it of tc.items) {
+        if (!('str' in it) || !it.str) continue;
+        if (text) text += ' ';
+        parts.push({ item: it, start: text.length });
+        text += it.str;
+      }
+      units.push({ kind: 'pdf', st, label: Core.pageLabel(i, n), text, parts });
+    }
+  } else {
+    content.querySelectorAll('.chapter').forEach((sec, i) => {
+      let text = '', lastBlock = null;
+      const parts = [];
+      const walker = document.createTreeWalker(sec, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.data) continue;
+        const block = node.parentElement && node.parentElement.closest(BLOCK);
+        if (text && block !== lastBlock) text += ' ';
+        lastBlock = block;
+        parts.push({ node, start: text.length });
+        text += node.data;
+      }
+      units.push({ kind: 'epub', label: chapterTitle(sec, i), text, parts });
+    });
+  }
+  for (const u of units) { u.folded = Core.foldText(u.text); u.starts = u.parts.map((p) => p.start); }
+  return units;
+}
+
+async function runSearch() {
+  const query = searchInput.value;
+  const token = ++search.token;
+  searchResults.innerHTML = '';
+  if (Core.foldText(query).text.trim().length < 2) {
+    setSearchStatus(query.trim() ? 'Tapez au moins 2 caractères' : '', query);
+    return;
+  }
+  if (!search.index) {
+    if (!search.building) search.building = buildIndex();
+    const building = search.building;
+    const idx = await building;
+    if (building !== search.building) return; // un autre livre a été ouvert entre-temps
+    search.index = idx;
+  }
+  if (token !== search.token) return;
+  if (state.pdf && search.index.every((u) => !u.text.trim())) {
+    setSearchStatus('Ce PDF ne contient pas de texte cherchable', query);
+    return;
+  }
+  const hits = [];
+  for (const u of search.index) {
+    for (const m of Core.searchFolded(u.folded, query, SEARCH_MAX + 1 - hits.length)) hits.push({ u, m });
+    if (hits.length > SEARCH_MAX) break;
+  }
+  const frag = document.createDocumentFragment();
+  for (const h of hits.slice(0, SEARCH_MAX)) {
+    const s = Core.snippet(h.u.text, h.m.start, h.m.end, 40);
+    const li = document.createElement('li');
+    const loc = document.createElement('span'); loc.className = 'loc'; loc.textContent = h.u.label;
+    const snip = document.createElement('span'); snip.className = 'snip';
+    const mark = document.createElement('mark'); mark.textContent = s.match;
+    snip.append(s.before, mark, s.after);
+    li.append(loc, snip);
+    li.addEventListener('click', () => goToHit(h));
+    frag.appendChild(li);
+  }
+  searchResults.appendChild(frag);
+  searchResults.scrollTop = 0;
+  setSearchStatus(Core.resultCount(hits.length, SEARCH_MAX), query);
+}
+
+function partAt(u, idx) {
+  const k = Math.max(0, Core.locate(u.starts, idx));
+  return { part: u.parts[k], off: idx - u.parts[k].start };
+}
+
+function jumpTo(y) {
+  clearSubpixel();
+  const max = scroller.scrollHeight - scroller.clientHeight;
+  scroller.scrollTop = Math.max(0, Math.min(max, Math.round(y - scroller.clientHeight / 3)));
+  state.pos = state.base = scroller.scrollTop;
+  state.ratio = currentRatio();
+  updatePct(true);
+  saveProgress();
+}
+
+function addHit(parent, left, top, width, height) {
+  const d = document.createElement('div');
+  d.className = 'search-hit';
+  Object.assign(d.style, { left: left + 'px', top: top + 'px', width: Math.max(4, width) + 'px', height: height + 'px' });
+  parent.appendChild(d);
+  setTimeout(() => d.remove(), 3600);
+}
+
+function goToHit({ u, m }) {
+  closeSearch();
+  pause();
+  content.querySelectorAll('.search-hit').forEach((d) => d.remove());
+  if (u.kind === 'epub') {
+    const a = partAt(u, m.start), b = partAt(u, m.end - 1);
+    const range = document.createRange();
+    range.setStart(a.part.node, Math.min(a.off, a.part.node.length));
+    range.setEnd(b.part.node, Math.min(b.off + 1, b.part.node.length));
+    const first = range.getClientRects()[0] || range.getBoundingClientRect();
+    jumpTo(scroller.scrollTop + first.top - scroller.getBoundingClientRect().top);
+    const base = content.getBoundingClientRect();
+    for (const r of Array.from(range.getClientRects()).slice(0, 6)) {
+      addHit(content, r.left - base.left - 1, r.top - base.top - 1, r.width + 2, r.height + 2);
+    }
+  } else {
+    const { part, off } = partAt(u, m.start);
+    const st = u.st, it = part.item;
+    const scale = st.el.clientWidth / st.w;
+    const vp = st.page.getViewport({ scale });
+    const tx = pdfjsLib.Util.transform(vp.transform, it.transform);
+    const h = Math.hypot(tx[2], tx[3]);
+    const w = it.width * scale, len = Math.max(1, it.str.length);
+    const left = tx[4] + w * (off / len);
+    const width = w * (Math.min(len - off, m.end - m.start) / len);
+    const top = tx[5] - h;
+    jumpTo(st.el.offsetTop + top);
+    addHit(st.el, left - 1, top - 2, width + 2, h * 1.25 + 2);
+  }
+}
 
 /* ---------- Plein écran (AFF-8) ---------- */
 const fsBtn = $('#fsBtn');

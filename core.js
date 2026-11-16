@@ -128,7 +128,59 @@
     return `Page ${i + 1} / ${n}`;
   }
 
+  // SRCH-2 : texte « replié » (minuscules, sans accents, apostrophes et espaces unifiés)
+  // avec, pour chaque caractère replié, l'indice du caractère d'origine.
+  const APOS = /[’‘ʼ`´]/;
+  function foldText(text) {
+    let out = '';
+    const map = [];
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      let f;
+      if (/\s/.test(c)) {
+        if (out.endsWith(' ')) continue;
+        f = ' ';
+      } else if (APOS.test(c)) {
+        f = "'";
+      } else {
+        f = c.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+      }
+      for (const ch of f) { out += ch; map.push(i); }
+    }
+    return { text: out, map };
+  }
+
+  function searchFolded(folded, query, max) {
+    const q = foldText(String(query)).text.trim();
+    if (q.length < 2) return [];
+    const res = [];
+    let i = folded.text.indexOf(q);
+    while (i >= 0 && res.length < max) {
+      res.push({ start: folded.map[i], end: folded.map[i + q.length - 1] + 1 });
+      i = folded.text.indexOf(q, i + q.length);
+    }
+    return res;
+  }
+
+  // SRCH-3 : extrait autour d'un résultat
+  function snippet(text, start, end, radius) {
+    const ws = (s) => s.replace(/\s+/g, ' ');
+    const b0 = Math.max(0, start - radius), a1 = Math.min(text.length, end + radius);
+    let before = ws(text.slice(b0, start));
+    let after = ws(text.slice(end, a1));
+    if (b0 > 0) before = '…' + before.trimStart();
+    if (a1 < text.length) after = after.trimEnd() + '…';
+    return { before, match: ws(text.slice(start, end)), after };
+  }
+
+  function resultCount(n, max) {
+    if (n === 0) return 'Aucun résultat';
+    if (n > max) return `${max}+ résultats`;
+    return n === 1 ? '1 résultat' : `${n} résultats`;
+  }
+
   const Core = {
+    foldText, searchFolded, snippet, resultCount,
     locate, pageLabel,
     SPEED_MIN, SPEED_MAX, SPEED_DEFAULT, FONT_MIN, FONT_MAX,
     detectType, titleFromFilename, formatSize, dirOf, resolvePath, mimeOf, linkTarget,

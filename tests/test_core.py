@@ -166,3 +166,53 @@ def test_NAV2_locate(core, offsets, y, expected):
 @pytest.mark.parametrize("i, n, expected", [(0, 30, "Page 1 / 30"), (29, 30, "Page 30 / 30")])
 def test_NAV2_page_label(core, i, n, expected):
     assert core("pageLabel", i, n) == expected
+
+
+# ---------- SRCH-2 : recherche insensible aux accents / casse / apostrophes ----------
+def search(core_page, text, query, maxn=200):
+    return core_page.evaluate("([t, q, m]) => LiseuseCore.searchFolded(LiseuseCore.foldText(t), q, m)",
+                              [text, query, maxn])
+
+
+@pytest.mark.parametrize("text, query, expected", [
+    ("Une baleine Élégante", "elegante", [[12, 20]]),
+    ("L’été dernier", "l'ete", [[0, 5]]),
+    ("L'été", "L’ÉTÉ", [[0, 5]]),
+    ("deux   espaces", "deux espaces", [[0, 14]]),
+    ("ligne\ncoupée", "ligne coupee", [[0, 12]]),
+    ("aaa", "aa", [[0, 2]]),                 # pas de chevauchement
+    ("Œuvre", "œuvre", [[0, 5]]),
+    ("rien ici", "zz", []),
+    ("court", "c", []),                     # moins de 2 caractères
+    ("court", "  ", []),
+    ("a b a b", " a b ", [[0, 3], [4, 7]]),  # espaces autour ignorés
+])
+def test_SRCH2_search(core_page, text, query, expected):
+    got = [[m["start"], m["end"]] for m in search(core_page, text, query)]
+    assert got == expected
+
+
+def test_SRCH2_matches_map_back_to_original_text(core_page):
+    text = "Ça été  l’Été"
+    for m in search(core_page, text, "ete"):
+        assert text[m["start"]:m["end"]].lower() in ("été",)
+
+
+def test_SRCH4_max_results(core_page):
+    assert len(search(core_page, "ab " * 500, "ab", 201)) == 201
+
+
+SNIP_TEXT = "aaaaa bbbbb ccccc MATCHEDddddd eeeee fffff"
+
+
+@pytest.mark.parametrize("start, end, expected", [
+    (18, 25, {"before": "…bbbbb ccccc ", "match": "MATCHED", "after": "ddddd eeeee…"}),
+    (0, 5, {"before": "", "match": "aaaaa", "after": " bbbbb ccccc…"}),
+    (37, 42, {"before": "…ddddd eeeee ", "match": "fffff", "after": ""}),
+])
+def test_SRCH3_snippet(core, start, end, expected):
+    assert core("snippet", SNIP_TEXT, start, end, 12) == expected
+
+
+def test_SRCH3_snippet_collapses_whitespace(core):
+    assert core("snippet", "un\n\n  deux trois", 11, 16, 40) == {"before": "un deux ", "match": "trois", "after": ""}
