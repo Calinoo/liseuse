@@ -1,8 +1,8 @@
 // Service worker : met l'application en cache pour un usage 100 % hors ligne.
 // Pensez à changer la version après chaque modification des fichiers.
-const CACHE = 'liseuse-v1';
+const CACHE = 'liseuse-v2';
 const ASSETS = [
-  './', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
+  './', 'index.html', 'style.css', 'core.js', 'app.js', 'manifest.webmanifest',
   'vendor/pdf.min.js', 'vendor/pdf.worker.min.js', 'vendor/jszip.min.js',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
 ];

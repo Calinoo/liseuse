@@ -39,3 +39,23 @@ Le dossier doit être mis en ligne en HTTPS, car iOS exige HTTPS pour le mode ho
 - `index.html`, `style.css`, `app.js` : l'application
 - `sw.js`, `manifest.webmanifest`, `icons/` : installation et mode hors ligne
 - `vendor/` : pdf.js (Mozilla) et JSZip, embarqués pour fonctionner hors connexion
+
+## Développement : spécification et tests
+
+La méthode suivie est **spec d'abord, test ensuite, code en dernier** :
+
+1. Toute nouvelle fonction ou correction commence par une exigence numérotée dans [`SPEC.md`](SPEC.md) (ex. `PROG-5`).
+2. On écrit un test qui cite cet identifiant et **qui échoue** (`tests/test_*.py`).
+3. On écrit le code minimal qui le fait passer, puis on relance **toute** la suite (régression).
+
+```bash
+./test.sh                          # toute la régression (~4 min)
+./test.sh --target webkit-iphone   # une seule cible (~1 min 30)
+./test.sh -k PROG                  # une seule famille d'exigences
+```
+
+- `tests/test_core.py` : tests unitaires de la logique pure (`core.js`).
+- Les autres fichiers sont des tests de bout en bout. Ils pilotent la vraie app avec Playwright, dans **WebKit** (le moteur de Safari) en iPhone et iPad, et dans **Chromium**.
+- Les livres de test sont générés par `tests/fixtures/make_books.py`. Ils contiennent volontairement des pièges : scripts, chemins tordus, fichiers corrompus.
+- Le temps est simulé dans les tests de défilement : les mesures de vitesse sont exactes et reproductibles.
+- Limite connue : Playwright WebKit ne gère pas les service workers. Le mode hors ligne (OFF-1) est donc vérifié dans Chromium. Il faudra aussi le vérifier une fois à la main sur l'iPhone (mode avion).

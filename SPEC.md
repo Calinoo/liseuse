@@ -73,6 +73,7 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | AFF-2 | EPUB : taille du texte de 13 à 34 px (19 par défaut) ; police Serif ou Sans. Ces réglages sont masqués pour les PDF. |
 | AFF-3 | Changer la taille ou la police conserve la position de lecture (à 2 % près). |
 | AFF-4 | Tous les réglages d'affichage sont mémorisés entre les sessions. |
+| AFF-6 | Après une rotation de l'appareil (ou un redimensionnement de la fenêtre), la position de lecture est conservée à 1 % près, pour les EPUB comme pour les PDF (voir aussi PDF-4). |
 | AFF-5 | L'interface est utilisable sans défilement horizontal sur iPhone (375 px de large) comme sur iPad, en portrait et en paysage, en respectant les zones de sécurité (encoche, barre d'accueil). |
 
 ## 7. Hors connexion (OFF)

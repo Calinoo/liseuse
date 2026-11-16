@@ -37,7 +37,10 @@
   <div id="topBar" class="bar top">
     <button id="backBtn" class="icon-btn" aria-label="Retour à la bibliothèque">‹</button>
     <div id="bookTitle" class="book-title"></div>
-    <span id="pct" class="pct">0 %</span>
+    <div class="stats" aria-live="off">
+      <span id="pct" class="pct">0 %</span>
+      <span id="remaining" class="remaining" title="Temps de lecture restant à cette vitesse"></span>
+    </div>
   </div>
 
   <div id="bottomBar" class="bar bottom">

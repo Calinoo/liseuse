@@ -5,6 +5,7 @@
    Tout est stocké localement (IndexedDB), fonctionne hors ligne.
    ========================================================= */
 
+const Core = window.LiseuseCore;
 const $ = (s) => document.querySelector(s);
 const scroller = $('#scroller');
 const content = $('#content');
@@ -14,6 +15,7 @@ const state = {
   book: null, playing: false, touching: false, pos: 0, last: 0,
   lastSave: 0, saveTimer: null, hideTimer: null, touchTimer: null,
   objectUrls: [], pdf: null, pages: [], observer: null, wakeLock: null,
+  ratio: 0, resizing: false, resizeTimer: null,
 };
 
 /* ---------- Réglages ---------- */
@@ -61,7 +63,6 @@ const deleteBook = (id) => tx(['books', 'files'], 'readwrite', (t) => {
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
 const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-function fmtSize(n) { return n > 1e6 ? (n / 1e6).toFixed(1).replace('.', ',') + ' Mo' : Math.max(1, Math.round(n / 1e3)) + ' Ko'; }
 function showLoading(t) { $('#loadingText').textContent = t || 'Chargement…'; $('#loading').classList.remove('hidden'); }
 function setLoading(t) { $('#loadingText').textContent = t; }
 function hideLoading() { $('#loading').classList.add('hidden'); }
@@ -85,7 +86,7 @@ async function renderLibrary() {
       <div class="progress"><span style="width:${p}%"></span></div></div>
       <button class="del" aria-label="Supprimer">✕</button>`;
     li.querySelector('.title').textContent = b.title;
-    li.querySelector('.meta').textContent = `${p} % lu · ${fmtSize(b.size)}`;
+    li.querySelector('.meta').textContent = `${p} % lu · ${Core.formatSize(b.size)}`;
     li.addEventListener('click', () => openBook(b.id));
     li.querySelector('.del').addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -106,12 +107,11 @@ async function importFiles(files) {
   showLoading('Import…');
   for (const f of files) {
     try {
-      const ext = (f.name.split('.').pop() || '').toLowerCase();
-      const type = ext === 'epub' || /epub/.test(f.type) ? 'epub' : ext === 'pdf' || /pdf/.test(f.type) ? 'pdf' : null;
+      const type = Core.detectType(f.name, f.type);
       if (!type) { alert(`« ${f.name} » n'est ni un PDF ni un EPUB.`); continue; }
       setLoading(`Import de ${f.name}…`);
       const buf = await f.arrayBuffer();
-      let title = f.name.replace(/\.[^.]+$/, '');
+      let title = Core.titleFromFilename(f.name);
       if (type === 'epub') { try { title = (await epubTitle(buf)) || title; } catch {} }
       await addBook({ id: uid(), title, type, size: f.size, added: Date.now(), lastOpened: 0, progress: 0 }, buf);
     } catch (err) {
@@ -153,9 +153,10 @@ async function openBook(id) {
   showBars();
 }
 
-function closeBook() {
+// BIB-5 : on enregistre et on prépare la liste AVANT de l'afficher (pas d'ordre périmé à l'écran)
+async function closeBook() {
   pause();
-  saveProgress();
+  const saving = saveProgress();
   if (state.observer) state.observer.disconnect();
   state.pages.forEach(releasePage);
   state.pages = [];
@@ -165,32 +166,40 @@ function closeBook() {
   content.innerHTML = '';
   state.book = null;
   closeSettings();
+  await saving;
+  await renderLibrary();
   showView('library');
-  renderLibrary();
 }
 $('#backBtn').addEventListener('click', closeBook);
 
 /* ---------- Progression ---------- */
 function currentRatio() {
-  const max = scroller.scrollHeight - scroller.clientHeight;
-  return max > 0 ? Math.min(1, Math.max(0, scroller.scrollTop / max)) : 0;
+  return Core.progressRatio(scroller.scrollTop, scroller.scrollHeight, scroller.clientHeight);
 }
 function restoreRatio(r) {
   const max = scroller.scrollHeight - scroller.clientHeight;
   scroller.scrollTop = Math.round(r * max);
   state.pos = scroller.scrollTop;
+  state.ratio = r;
 }
 function saveProgress() {
-  if (!state.book) return;
+  if (!state.book) return Promise.resolve();
   state.book.progress = currentRatio();
+  window.LiseuseApp.lastSavedProgress = state.book.progress;
   state.book.lastOpened = Date.now();
   state.lastSave = Date.now();
-  putBook(state.book).catch(() => {});
+  return putBook(state.book).catch(() => {});
 }
-function updatePct() { $('#pct').textContent = Math.round(currentRatio() * 100) + ' %'; }
+// PROG-2, PROG-5, PROG-6, PROG-7
+function updatePct() {
+  $('#pct').textContent = Math.round(currentRatio() * 100) + ' %';
+  $('#remaining').textContent = Core.formatRemaining(
+    Core.remainingSeconds(scroller.scrollTop, scroller.scrollHeight, scroller.clientHeight, settings.speed));
+}
 
 scroller.addEventListener('scroll', () => {
-  if (!state.book) return;
+  if (!state.book || state.resizing) return;
+  state.ratio = currentRatio();
   updatePct();
   clearTimeout(state.saveTimer);
   if (Date.now() - state.lastSave > 3000) saveProgress();
@@ -276,12 +285,13 @@ function scheduleHide() {
 /* ---------- Vitesse ---------- */
 const speedInput = $('#speed');
 function setSpeed(v) {
-  settings.speed = Math.max(5, Math.min(200, Math.round(v)));
+  settings.speed = Core.clampSpeed(v);
   speedInput.value = settings.speed;
   $('#speedVal').textContent = settings.speed;
   saveSettings();
+  if (state.book) updatePct();
 }
-const step = () => (settings.speed < 20 ? 1 : settings.speed < 60 ? 2 : 5);
+const step = () => Core.speedStep(settings.speed);
 speedInput.addEventListener('input', () => setSpeed(+speedInput.value));
 $('#slower').addEventListener('click', () => { setSpeed(settings.speed - step()); if (state.playing) scheduleHide(); });
 $('#faster').addEventListener('click', () => { setSpeed(settings.speed + step()); if (state.playing) scheduleHide(); });
@@ -311,8 +321,8 @@ function changeLayout(fn) {
 }
 document.querySelectorAll('#themeSeg button').forEach((b) => b.addEventListener('click', () => { settings.theme = b.dataset.theme; saveSettings(); applySettings(); }));
 document.querySelectorAll('#fontSeg button').forEach((b) => b.addEventListener('click', () => changeLayout(() => { settings.font = b.dataset.font; })));
-$('#fontDown').addEventListener('click', () => changeLayout(() => { settings.fontSize = Math.max(13, settings.fontSize - 1); }));
-$('#fontUp').addEventListener('click', () => changeLayout(() => { settings.fontSize = Math.min(34, settings.fontSize + 1); }));
+$('#fontDown').addEventListener('click', () => changeLayout(() => { settings.fontSize = Core.clampFontSize(settings.fontSize - 1); }));
+$('#fontUp').addEventListener('click', () => changeLayout(() => { settings.fontSize = Core.clampFontSize(settings.fontSize + 1); }));
 
 function closeSettings() { $('#settings').classList.add('hidden'); }
 $('#settingsBtn').addEventListener('click', () => {
@@ -380,41 +390,33 @@ function releasePage(st) {
   if (st.canvas) { st.canvas.width = st.canvas.height = 0; st.canvas.remove(); st.canvas = null; }
 }
 
-let resizeTimer;
-window.addEventListener('resize', () => {
-  if (!state.pdf) return;
-  clearTimeout(resizeTimer);
-  const r = currentRatio();
-  resizeTimer = setTimeout(() => {
-    state.pages.forEach(releasePage);
+// AFF-6 / PDF-4 : à la rotation, la mise en page change avant l'événement « resize ».
+// On restaure donc la dernière position connue (state.ratio), pas celle mesurée maintenant.
+function onResize() {
+  if (!state.book) return;
+  const r = state.ratio;
+  state.resizing = true;
+  restoreRatio(r);
+  clearTimeout(state.resizeTimer);
+  state.resizeTimer = setTimeout(() => {
+    if (state.pdf) state.pages.forEach(releasePage);
     restoreRatio(r);
-    state.pages.filter((st) => st.visible).forEach(renderPage);
+    state.resizing = false;
+    updatePct();
+    if (state.pdf) state.pages.filter((st) => st.visible).forEach(renderPage);
   }, 250);
-});
+}
+window.addEventListener('resize', onResize);
 
 /* ---------- EPUB ---------- */
 const parseXml = (t) => new DOMParser().parseFromString(t, 'application/xml');
 const byTag = (d, n) => Array.from(d.getElementsByTagNameNS('*', n));
-const dirOf = (p) => { const i = p.lastIndexOf('/'); return i >= 0 ? p.slice(0, i + 1) : ''; };
-function resolvePath(base, href) {
-  href = href.split('#')[0].split('?')[0];
-  try { href = decodeURIComponent(href); } catch {}
-  if (href.startsWith('/')) { base = ''; href = href.slice(1); }
-  const out = [];
-  for (const p of (base + href).split('/')) {
-    if (p === '..') out.pop(); else if (p && p !== '.') out.push(p);
-  }
-  return out.join('/');
-}
+const { dirOf, resolvePath, mimeOf } = Core;
 function zipFile(zip, path) {
   const f = zip.file(path);
   if (f) return f;
   const k = Object.keys(zip.files).find((x) => x.toLowerCase() === path.toLowerCase());
   return k ? zip.file(k) : null;
-}
-function mimeOf(p) {
-  const ext = (p.split('.').pop() || '').toLowerCase();
-  return { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', svg: 'image/svg+xml', webp: 'image/webp' }[ext] || 'application/octet-stream';
 }
 async function readOpf(zip) {
   const cf = zipFile(zip, 'META-INF/container.xml');
@@ -513,14 +515,9 @@ async function sanitize(root, ctx) {
       const href = el.getAttribute('href') || el.getAttributeNS(XLINK, 'href') || '';
       el.removeAttribute('href');
       el.removeAttributeNS(XLINK, 'href');
-      if (/^https?:/i.test(href)) {
-        el.setAttribute('data-ext', href);
-      } else if (href) {
-        const frag = href.includes('#') ? href.slice(href.indexOf('#') + 1) : '';
-        const path = href.startsWith('#') ? null : resolvePath(ctx.cdir, href);
-        const j = path === null ? ctx.i : ctx.chapterIndex.get(path);
-        if (j !== undefined) el.setAttribute('data-target', frag ? `c${j}-${frag}` : `c${j}`);
-      }
+      const link = Core.linkTarget(href, { chapter: ctx.i, dir: ctx.cdir, index: ctx.chapterIndex });
+      if (link && link.type === 'external') el.setAttribute('data-ext', link.url);
+      else if (link) el.setAttribute('data-target', link.id);
       if (el.hasAttribute('data-ext') || el.hasAttribute('data-target')) el.setAttribute('href', '#');
     }
   }
@@ -542,9 +539,11 @@ function handleLink(a) {
 }
 
 /* ---------- Démarrage ---------- */
+// Points d'observation pour les tests automatiques (lecture seule)
+window.LiseuseApp = { ready: false, lastSavedProgress: null };
 setSpeed(settings.speed);
 applySettings();
-renderLibrary();
+renderLibrary().then(() => { window.LiseuseApp.ready = true; });
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
