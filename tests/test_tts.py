@@ -17,6 +17,7 @@ STUB = """
     { name: 'Amélie (Améliorée)', lang: 'fr-CA', localService: true },
     { name: 'Audrey (Premium)', lang: 'fr-FR', localService: true },
     { name: 'Samantha', lang: 'en-US', localService: true },
+    { name: 'Eddy', lang: 'fr-FR', voiceURI: 'com.apple.eloquence.fr-FR.Eddy', localService: true },
   ];
   const synth = {
     speaking: false, paused: false, pending: false,
@@ -191,6 +192,41 @@ def test_TTS3_best_french_voice(tts, books):
     tts.locator("#ttsBtn").click()
     u = last_spoken(tts)
     assert u["voice"] == "Audrey (Premium)" and u["lang"].startswith("fr")
+
+
+def test_TTS11_choose_voice_applies_now_and_is_remembered(tts, books):
+    open_epub(tts, books)
+    tts.locator("#settingsBtn").click()
+    sel = tts.locator("#voiceSelect")
+    assert sel.is_visible()
+    labels = sel.locator("option").all_inner_texts()
+    assert labels[0].startswith("Automatique") and "Eddy" not in " ".join(labels)
+    assert labels[1:] == ["Audrey · Premium", "Thomas", "Amélie · Améliorée (Canada)"]
+    assert "Contenu énoncé" in tts.locator("#voiceHint").inner_text()
+    tts.locator("#settingsBtn").click()
+    tts.locator("#ttsBtn").click()
+    n = len(spoken(tts))
+    tts.locator("#settingsBtn").click()
+    sel.select_option("Thomas")
+    u = last_spoken(tts)
+    assert len(spoken(tts)) == n + 1 and u["voice"] == "Thomas" and u["text"] == "Chapitre 1"
+    tts.reload()
+    tts.wait_for_function("window.LiseuseApp && window.LiseuseApp.ready")
+    open_book(tts, "Mon livre de test")
+    assert tts.locator("#voiceSelect").input_value() == "Thomas"
+    tts.locator("#ttsBtn").click()
+    assert last_spoken(tts)["voice"] == "Thomas"
+
+
+def test_TTS11_no_voice_choice_without_synthesis(ctx, base_url, books):
+    page = ctx.new_page()
+    page.add_init_script("delete window.speechSynthesis; Object.defineProperty(window, 'speechSynthesis',"
+                         " { configurable: true, value: undefined });")
+    page.goto(base_url + "/index.html")
+    page.wait_for_function("window.LiseuseApp && window.LiseuseApp.ready")
+    open_epub(page, books)
+    page.locator("#settingsBtn").click()
+    assert not page.locator("#voiceSelect").is_visible()
 
 
 # ---------- TTS-4 ----------

@@ -324,6 +324,50 @@ def test_TTS3_pick_voice(core, voices, lang, expected):
     assert core("pickVoice", voices, lang) == expected
 
 
+# Voix telles qu'iOS les expose : même nom, qualité dans l'identifiant, voix fantaisie.
+IOS_VOICES = [
+    {"name": "Eddy", "lang": "fr-FR", "voiceURI": "com.apple.eloquence.fr-FR.Eddy", "localService": True},
+    {"name": "Thomas", "lang": "fr-FR", "voiceURI": "com.apple.voice.compact.fr-FR.Thomas", "localService": True, "default": True},
+    {"name": "Audrey", "lang": "fr-FR", "voiceURI": "com.apple.voice.compact.fr-FR.Audrey", "localService": True},
+    {"name": "Audrey", "lang": "fr-FR", "voiceURI": "com.apple.voice.enhanced.fr-FR.Audrey", "localService": True},
+    {"name": "Amélie", "lang": "fr-CA", "voiceURI": "com.apple.voice.premium.fr-CA.Amelie", "localService": True},
+    {"name": "Grandma", "lang": "fr-FR", "voiceURI": "com.apple.speech.synthesis.voice.Grandma", "localService": True},
+]
+
+
+@pytest.mark.parametrize("voices, expected", [
+    (IOS_VOICES, "com.apple.voice.enhanced.fr-FR.Audrey"),           # qualité lue dans voiceURI
+    (IOS_VOICES[:2], "com.apple.voice.compact.fr-FR.Thomas"),        # jamais Eddy
+    ([IOS_VOICES[0], IOS_VOICES[5]], "com.apple.eloquence.fr-FR.Eddy"),  # rien d'autre : mieux que muet
+])
+def test_TTS3_pick_voice_ios(core, voices, expected):
+    assert core("pickVoice", voices, "fr") == expected
+
+
+def test_TTS3_premium_beats_enhanced(core):
+    vs = [{"name": "A", "lang": "fr-FR", "voiceURI": "x.enhanced.A"},
+          {"name": "B", "lang": "fr-FR", "voiceURI": "x.premium.B"}]
+    assert core("pickVoice", vs, "fr") == "x.premium.B"
+
+
+def test_TTS11_preferred_voice(core):
+    assert core("pickVoice", IOS_VOICES, "fr", "com.apple.voice.compact.fr-FR.Audrey") == "com.apple.voice.compact.fr-FR.Audrey"
+    # voix disparue ou d'une autre langue : automatique
+    assert core("pickVoice", IOS_VOICES, "fr", "gone") == "com.apple.voice.enhanced.fr-FR.Audrey"
+    assert core("pickVoice", VOICES, "fr", "Samantha") == "Audrey (Premium)"
+
+
+def test_TTS11_voice_choices(core):
+    assert core("voiceChoices", IOS_VOICES, "fr") == [
+        {"id": "com.apple.voice.enhanced.fr-FR.Audrey", "label": "Audrey · Améliorée"},
+        {"id": "com.apple.voice.compact.fr-FR.Audrey", "label": "Audrey"},
+        {"id": "com.apple.voice.compact.fr-FR.Thomas", "label": "Thomas"},
+        {"id": "com.apple.voice.premium.fr-CA.Amelie", "label": "Amélie · Premium (Canada)"},
+    ]
+    assert core("voiceChoices", VOICES, "fr")[0] == {"id": "Audrey (Premium)", "label": "Audrey · Premium"}
+    assert core("voiceChoices", [], "fr") == []
+
+
 # ---------- TTS-6 : vitesse de la voix ----------
 @pytest.mark.parametrize("v, expected", [(1, 1), (0.3, 0.5), (2.4, 2), (1.04, 1), (1.26, 1.3), ("x", 1)])
 def test_TTS6_clamp_rate(core, v, expected):
@@ -350,3 +394,17 @@ def test_TTS8_next_sleep_option(core, cur, chapters, expected):
 ])
 def test_TTS8_format_sleep(core, left, expected):
     assert core("formatSleep", left) == expected
+
+
+# ---------- AFF-12 : pincement ----------
+@pytest.mark.parametrize("start, d0, d, lo, hi, step, expected", [
+    (19, 100, 150, 13, 34, 1, 29),      # 19 × 1,5 = 28,5 → 29
+    (19, 100, 50, 13, 34, 1, 13),       # borné au minimum
+    (19, 100, 300, 13, 34, 1, 34),      # borné au maximum
+    (1, 100, 200, 1, 3, 0.05, 2),       # zoom PDF ×2
+    (1, 100, 123, 1, 3, 0.05, 1.25),    # pas de 5 %
+    (2, 100, 10, 1, 3, 0.05, 1),
+    (19, 0, 50, 13, 34, 1, 19),         # écart initial nul : rien ne change
+])
+def test_AFF12_pinch_value(core, start, d0, d, lo, hi, step, expected):
+    assert core("pinchValue", start, d0, d, lo, hi, step) == pytest.approx(expected)

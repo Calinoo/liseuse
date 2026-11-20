@@ -263,22 +263,63 @@
   }
 
   // TTS-3 : choix de la voix (région demandée d'abord, puis qualité)
-  const QUALITY = /premium|enhanced|amélioré|neural|natural/i;
   const DEFAULT_REGION = { fr: 'FR', en: 'US', es: 'ES', de: 'DE', it: 'IT', pt: 'PT', nl: 'NL' };
-  function pickVoice(voices, lang) {
+  const NOVELTY = /eloquence|speech\.synthesis\.voice|^(eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley)\b/i;
+  const REGION_NAMES = { FR: 'France', CA: 'Canada', BE: 'Belgique', CH: 'Suisse', US: 'États-Unis',
+    GB: 'Royaume-Uni', AU: 'Australie', IE: 'Irlande', IN: 'Inde', ES: 'Espagne', MX: 'Mexique' };
+  const splitLang = (l) => { const [b, r] = String(l || '').replace('_', '-').split('-'); return [(b || '').toLowerCase(), (r || '').toUpperCase()]; };
+  const voiceId = (v) => v.voiceURI || v.name;
+  // 2 = Premium, 1 = Améliorée, 0 = standard, -1 = fantaisie / robotique
+  function voiceQuality(v) {
+    const s = `${v.name} ${v.voiceURI || ''}`;
+    if (NOVELTY.test(v.voiceURI || '') || NOVELTY.test(v.name)) return -1;
+    if (/premium|neural|natural/i.test(s)) return 2;
+    if (/enhanced|amélioré/i.test(s)) return 1;
+    return 0;
+  }
+  function wantedLang(lang) {
+    const [base, r] = splitLang(lang || 'fr');
+    return [base, r || DEFAULT_REGION[base] || ''];
+  }
+  // TTS-3 et TTS-11 : renvoie l'identifiant (voiceURI, sinon nom) de la voix à utiliser
+  function pickVoice(voices, lang, preferred) {
     if (!voices || !voices.length) return null;
-    const [b, r] = String(lang || 'fr').replace('_', '-').split('-');
-    const base = b.toLowerCase(), region = (r || DEFAULT_REGION[base] || '').toUpperCase();
-    let best = null, bestScore = -1;
-    for (const v of voices) {
-      const [vb, vr] = String(v.lang || '').replace('_', '-').split('-');
-      if ((vb || '').toLowerCase() !== base) continue;
-      const score = 10 + ((vr || '').toUpperCase() === region ? 5 : 0) + (QUALITY.test(v.name) ? 3 : 0)
-        + (v.localService ? 1 : 0) + (v.default ? 0.5 : 0);
+    const [base, region] = wantedLang(lang);
+    const same = voices.filter((v) => splitLang(v.lang)[0] === base);
+    if (preferred) {
+      const p = same.find((v) => voiceId(v) === preferred);
+      if (p) return voiceId(p);
+    }
+    let best = null, bestScore = -Infinity;
+    for (const v of same) {
+      const q = voiceQuality(v);
+      const score = (q < 0 ? -100 : 0) + (splitLang(v.lang)[1] === region ? 5 : 0) + q * 1.5
+        + (v.localService ? 0.25 : 0) + (v.default ? 0.1 : 0);
       if (score > bestScore) { best = v; bestScore = score; }
     }
     if (!best) best = voices.find((v) => v.default) || voices[0];
-    return best.name;
+    return voiceId(best);
+  }
+  // TTS-11 : liste proposée dans le panneau Aa
+  function voiceChoices(voices, lang) {
+    const [base, region] = wantedLang(lang);
+    return (voices || [])
+      .filter((v) => splitLang(v.lang)[0] === base && voiceQuality(v) >= 0)
+      .map((v) => ({ v, q: voiceQuality(v), r: splitLang(v.lang)[1] }))
+      .sort((x, y) => (y.r === region) - (x.r === region) || y.q - x.q || x.v.name.localeCompare(y.v.name, 'fr'))
+      .map(({ v, q, r }) => {
+        const name = v.name.replace(/\s*\((premium|enhanced|améliorée?)\)\s*$/i, '');
+        let label = name + (q === 2 ? ' · Premium' : q === 1 ? ' · Améliorée' : '');
+        if (r && r !== region) label += ` (${REGION_NAMES[r] || r})`;
+        return { id: voiceId(v), label };
+      });
+  }
+
+  // AFF-12 : valeur pendant un pincement (taille du texte ou zoom PDF)
+  function pinchValue(start, d0, d, lo, hi, step) {
+    if (!(d0 > 0) || !(d > 0)) return start;
+    const v = Math.round((start * d / d0) / step) * step;
+    return Math.round(Math.max(lo, Math.min(hi, v)) * 1000) / 1000;
   }
 
   // TTS-6 : vitesse de la voix
@@ -303,7 +344,7 @@
   }
 
   const Core = {
-    splitSentences, pickVoice, clampTtsRate, formatRate, nextSleepOption, formatSleep,
+    splitSentences, pickVoice, voiceChoices, pinchValue, clampTtsRate, formatRate, nextSleepOption, formatSleep,
     THEMES, effectiveTheme, parseColor, contrastRatio,
     foldText, searchFolded, snippet, resultCount,
     locate, pageLabel,

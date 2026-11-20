@@ -21,7 +21,7 @@ const state = {
 
 /* ---------- Réglages ---------- */
 const settings = Object.assign({ speed: 30, theme: 'light', fontSize: 19, font: 'serif',
-  autoTheme: false, dayTheme: 'light', nightTheme: 'night', ttsRate: 1 }, loadSettings());
+  autoTheme: false, dayTheme: 'light', nightTheme: 'night', ttsRate: 1, ttsVoice: null, pdfZoom: 1 }, loadSettings());
 const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
 function loadSettings() { try { return JSON.parse(localStorage.getItem('liseuse-settings')) || {}; } catch { return {}; } }
 function saveSettings() { try { localStorage.setItem('liseuse-settings', JSON.stringify(settings)); } catch {} }
@@ -145,9 +145,14 @@ async function openBook(id) {
   if (!b.hash) b.hash = await fingerprint(buf); // livres importés avant BIB-9 (avant que pdf.js ne s'approprie buf)
   state.book = b;
   state.bookLang = 'fr';
+  fillVoices();
   resetSearch();
   content.innerHTML = '';
   content.className = b.type;
+  // AFF-12 : zoom mémorisé pour les PDF
+  const z = b.type === 'pdf' ? settings.pdfZoom || 1 : 1;
+  content.style.setProperty('--z', z);
+  scroller.classList.toggle('zoomed', z > 1);
   readerView.classList.toggle('is-pdf', b.type === 'pdf');
   $('#bookTitle').textContent = b.title;
   showView('reader');
@@ -300,6 +305,57 @@ scroller.addEventListener('touchstart', () => { state.touching = true; tts.holdU
 const endTouch = () => { tts.holdUntil = performance.now() + 3000; clearTimeout(state.touchTimer); state.touchTimer = setTimeout(() => { state.touching = false; }, 700); };
 scroller.addEventListener('touchend', endTouch, { passive: true });
 scroller.addEventListener('touchcancel', endTouch, { passive: true });
+
+// AFF-12 : l'app ne zoome jamais en entier ; le pincement règle le texte (EPUB) ou les pages (PDF)
+['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault()));
+document.addEventListener('touchmove', (e) => { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
+const pinch = { on: false, d0: 0, start: 0, value: 0, ratio: 0, cx: 0 };
+const fingerGap = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+function applyPdfZoom(z, cx) {
+  const old = parseFloat(content.style.getPropertyValue('--z')) || 1;
+  const left = scroller.scrollLeft;
+  content.style.setProperty('--z', z);
+  scroller.classList.toggle('zoomed', z > 1);
+  restoreRatio(pinch.ratio);
+  if (cx != null) scroller.scrollLeft = (left + cx) * z / old - cx;
+}
+scroller.addEventListener('touchstart', (e) => {
+  if (!state.book || !e.touches || e.touches.length !== 2) return;
+  clearTimeout(press.timer); press.timer = null;
+  state.suppressClick = true;
+  pinch.on = true;
+  pinch.d0 = fingerGap(e.touches);
+  pinch.start = pinch.value = state.pdf ? settings.pdfZoom : settings.fontSize;
+  pinch.ratio = currentRatio();
+  const rc = scroller.getBoundingClientRect();
+  pinch.cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rc.left;
+}, { passive: true });
+scroller.addEventListener('touchmove', (e) => {
+  if (!pinch.on || !e.touches || e.touches.length < 2) return;
+  e.preventDefault();
+  const v = state.pdf ? Core.pinchValue(pinch.start, pinch.d0, fingerGap(e.touches), 1, 3, 0.05)
+    : Core.pinchValue(pinch.start, pinch.d0, fingerGap(e.touches), Core.FONT_MIN, Core.FONT_MAX, 1);
+  if (v === pinch.value) return;
+  pinch.value = v;
+  if (state.pdf) { settings.pdfZoom = v; applyPdfZoom(v, pinch.cx); }
+  else { settings.fontSize = v; applySettings(); restoreRatio(pinch.ratio); }
+}, { passive: false });
+function endPinch(e) {
+  if (!pinch.on || (e.touches && e.touches.length >= 2)) return;
+  pinch.on = false;
+  // le « click » éventuel du geste est ignoré, puis on oublie le drapeau
+  setTimeout(() => { state.suppressClick = false; }, 400);
+  if (pinch.value === pinch.start) return;
+  saveSettings();
+  restoreRatio(pinch.ratio);
+  if (state.pdf) {
+    state.pages.forEach(releasePage);
+    restoreRatio(pinch.ratio);
+    state.pages.filter((st) => st.visible).forEach(renderPage);
+  }
+}
+scroller.addEventListener('touchend', endPinch, { passive: true });
+scroller.addEventListener('touchcancel', endPinch, { passive: true });
 
 // Un toucher sur le texte = lecture / pause
 scroller.addEventListener('click', (e) => {
@@ -582,6 +638,8 @@ const tts = {
   sleepOpt: null, deadline: null, sleepTimer: null, anim: 0,
 };
 $('#ttsBtn').classList.toggle('hidden', !ttsSupported);
+// iOS charge la liste des voix après coup
+if (ttsSupported && synth.addEventListener) synth.addEventListener('voiceschanged', () => fillVoices());
 
 const sentencesOf = (u) => u.sentences || (u.sentences = Core.splitSentences(u.text, 250, u.breaks));
 function setTtsState(st) {
@@ -657,8 +715,26 @@ function showSentence() {
 
 function currentVoice() {
   const voices = synth.getVoices() || [];
-  const name = Core.pickVoice(voices, state.bookLang || 'fr');
-  return voices.find((v) => v.name === name) || null;
+  const id = Core.pickVoice(voices, state.bookLang || 'fr', settings.ttsVoice);
+  return voices.find((v) => (v.voiceURI || v.name) === id) || null;
+}
+
+// TTS-11 : choix de la voix dans le panneau Aa
+function fillVoices() {
+  const sel = $('#voiceSelect');
+  if (!ttsSupported) return;
+  const choices = Core.voiceChoices(synth.getVoices() || [], state.bookLang || 'fr');
+  sel.replaceChildren();
+  const auto = document.createElement('option');
+  auto.value = ''; auto.textContent = 'Automatique (la meilleure)';
+  sel.appendChild(auto);
+  for (const c of choices) {
+    const o = document.createElement('option');
+    o.value = c.id; o.textContent = c.label;
+    sel.appendChild(o);
+  }
+  sel.value = choices.some((c) => c.id === settings.ttsVoice) ? settings.ttsVoice : '';
+  document.querySelectorAll('.voice-row').forEach((el) => el.classList.toggle('hidden', !choices.length));
 }
 
 function speakCurrent() {
@@ -832,6 +908,11 @@ function setTtsRate(v) {
   $('#ttsRate').textContent = Core.formatRate(settings.ttsRate);
   if (tts.state === 'playing') speakCurrent();
 }
+$('#voiceSelect').addEventListener('change', (e) => {
+  settings.ttsVoice = e.target.value || null;
+  saveSettings();
+  if (tts.state === 'playing') speakCurrent();
+});
 $('#ttsFaster').addEventListener('click', () => setTtsRate(settings.ttsRate + 0.1));
 $('#ttsSlower').addEventListener('click', () => setTtsRate(settings.ttsRate - 0.1));
 
@@ -915,6 +996,7 @@ $('#fontUp').addEventListener('click', () => changeLayout(() => { settings.fontS
 function closeSettings() { $('#settings').classList.add('hidden'); }
 $('#settingsBtn').addEventListener('click', () => {
   pause();
+  fillVoices();
   $('#settings').classList.toggle('hidden');
 });
 
@@ -980,7 +1062,11 @@ function releasePage(st) {
 
 // AFF-6 / PDF-4 : à la rotation, la mise en page change avant l'événement « resize ».
 // On restaure donc la dernière position connue (state.ratio), pas celle mesurée maintenant.
+let lastSize = `${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`;
 function onResize() {
+  const size = `${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`;
+  if (size === lastSize) return; // AFF-12 : pas un vrai changement de taille
+  lastSize = size;
   if (!state.book) return;
   const r = state.ratio;
   state.resizing = true;
@@ -1049,6 +1135,7 @@ async function loadEpub(buf) {
   const lang = byTag(opf, 'language')[0];
   wrap.lang = (lang && lang.textContent.trim()) || 'fr';
   state.bookLang = wrap.lang;
+  fillVoices();
 
   for (let i = 0; i < spine.length; i++) {
     setLoading(`Chapitre ${i + 1}/${spine.length}…`);

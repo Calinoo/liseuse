@@ -8,7 +8,8 @@ Une web app à installer sur l'écran d'accueil de l'iPhone ou de l'iPad. Une fo
 - **Lancer ou arrêter le défilement** : touchez le texte, ou le bouton ▶ en bas.
 - **Vitesse** : curseur, ou boutons − et +. Elle est mémorisée.
 - **Avancer ou reculer à la main** : glissez le doigt. Le défilement se met en pause pendant le geste et reprend tout seul.
-- **Aa** : thème clair, sépia ou sombre ; taille du texte et police (EPUB).
+- **Aa** : thème, taille du texte et police (EPUB), choix de la voix.
+- **Pincer à deux doigts** : change la taille du texte (EPUB) ou agrandit la page (PDF, jusqu'à 300 %, on glisse alors de côté). L'app elle-même ne zoome jamais.
 - La position de lecture est enregistrée en continu. Le livre se rouvre là où vous l'avez laissé.
 
 ## Installation sur iPhone / iPad (une seule fois)
@@ -31,7 +32,8 @@ Le dossier doit être mis en ligne en HTTPS, car iOS exige HTTPS pour le mode ho
 
 - Bouton 🔊 en bas : lit à partir du haut de l'écran. Appui long sur un paragraphe : lit à partir de là.
 - La phrase lue est surlignée et le texte suit la voix. Commandes : ⏮ ⏯ ⏭ ■, vitesse de la voix, minuterie ⏲.
-- Pour une voix plus naturelle, téléchargez une voix française « Améliorée » ou « Premium » dans Réglages > Accessibilité > Contenu énoncé > Voix. La Liseuse la choisira automatiquement.
+- La meilleure voix installée est choisie automatiquement ; on peut en choisir une autre dans **Aa > Voix**.
+- Pour une voix plus naturelle (gratuit), téléchargez une voix française « Améliorée » ou « Premium » dans Réglages > Accessibilité > Contenu énoncé > Voix. La Liseuse la choisira automatiquement.
 - Limite d'iOS pour les apps web : la lecture s'arrête si l'écran se verrouille ou si vous changez d'app. L'écran reste donc allumé pendant la lecture, et ⏯ reprend à la même phrase.
 
 ## Bon à savoir
