@@ -227,3 +227,4 @@ input[type="range"]::-moz-range-thumb {
 /* TTS-11 : choix de la voix */
 #voiceSelect { max-width: 62%; font: inherit; font-size: 15px; padding: 6px 8px; border-radius: 8px;
   border: 1px solid var(--line, #ccc); background: var(--bg); color: var(--fg); }
+.version { color: var(--muted); font-size: 12px; text-align: center; margin: 24px 0 0; }

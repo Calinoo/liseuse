@@ -307,8 +307,10 @@ scroller.addEventListener('touchend', endTouch, { passive: true });
 scroller.addEventListener('touchcancel', endTouch, { passive: true });
 
 // AFF-12 : l'app ne zoome jamais en entier ; le pincement règle le texte (EPUB) ou les pages (PDF)
-['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault()));
-document.addEventListener('touchmove', (e) => { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive: false });
+// AFF-13 : si iOS a malgré tout laissé la page zoomée, on le laisse dézoomer
+const pageZoomed = () => !!(window.visualViewport && Math.abs(window.visualViewport.scale - 1) > 0.01);
+['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => { if (!pageZoomed()) e.preventDefault(); }));
+document.addEventListener('touchmove', (e) => { if (e.touches && e.touches.length > 1 && !pageZoomed()) e.preventDefault(); }, { passive: false });
 const pinch = { on: false, d0: 0, start: 0, value: 0, ratio: 0, cx: 0 };
 const fingerGap = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
 function applyPdfZoom(z, cx) {
@@ -331,7 +333,7 @@ scroller.addEventListener('touchstart', (e) => {
   pinch.cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rc.left;
 }, { passive: true });
 scroller.addEventListener('touchmove', (e) => {
-  if (!pinch.on || !e.touches || e.touches.length < 2) return;
+  if (!pinch.on || !e.touches || e.touches.length < 2 || pageZoomed()) return;
   e.preventDefault();
   const v = state.pdf ? Core.pinchValue(pinch.start, pinch.d0, fingerGap(e.touches), 1, 3, 0.05)
     : Core.pinchValue(pinch.start, pinch.d0, fingerGap(e.touches), Core.FONT_MIN, Core.FONT_MAX, 1);
@@ -1067,6 +1069,7 @@ function onResize() {
   const size = `${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`;
   if (size === lastSize) return; // AFF-12 : pas un vrai changement de taille
   lastSize = size;
+  onRotate();
   if (!state.book) return;
   const r = state.ratio;
   state.resizing = true;
@@ -1081,6 +1084,24 @@ function onResize() {
   }, 250);
 }
 window.addEventListener('resize', onResize);
+
+// AFF-13 : à la rotation, iOS peut garder un zoom ; réécrire la balise viewport réimpose l'échelle 1
+const VIEWPORT = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+let vpFlip = false;
+function resetScale() {
+  const m = document.querySelector('meta[name=viewport]');
+  if (!m) return;
+  vpFlip = !vpFlip; // contenu légèrement différent à chaque fois, pour qu'iOS le relise
+  m.setAttribute('content', vpFlip ? VIEWPORT.replace('initial-scale=1', 'initial-scale=1.0') : VIEWPORT);
+}
+let rotTimer = null;
+function onRotate() {
+  resetScale();
+  clearTimeout(rotTimer);
+  rotTimer = setTimeout(resetScale, 500);
+}
+window.addEventListener('orientationchange', onRotate);
+if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', onRotate);
 
 /* ---------- EPUB ---------- */
 const parseXml = (t) => new DOMParser().parseFromString(t, 'application/xml');
@@ -1216,6 +1237,8 @@ function handleLink(a) {
 
 /* ---------- Démarrage ---------- */
 // Points d'observation pour les tests automatiques (lecture seule)
+const APP_VERSION = 'v9'; // = numéro du cache dans sw.js (AFF-13)
+$('#version').textContent = `Liseuse ${APP_VERSION}`;
 window.LiseuseApp = { ready: false, lastSavedProgress: null, longPresses: 0 };
 setSpeed(settings.speed);
 applySettings();
