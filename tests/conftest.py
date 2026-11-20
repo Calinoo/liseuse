@@ -128,6 +128,10 @@ def app(ctx, base_url):
         d.accept() if page.dialog_answer else d.dismiss()
 
     page.on("dialog", on_dialog)
+    # Horloge simulée installée AVANT le chargement (le temps s'écoule normalement tant
+    # qu'un test ne le pilote pas) : l'installer après coup crée, sous forte charge, une
+    # course où certains minuteurs de l'app restent sur l'horloge réelle.
+    page.clock.install()
     page.goto(base_url + "/index.html")
     page.wait_for_function("window.LiseuseApp && window.LiseuseApp.ready")
     yield page

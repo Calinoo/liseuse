@@ -205,7 +205,105 @@
     return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
   }
 
+  // TTS-2 : découpage en phrases (indices [début, fin) dans le texte d'origine)
+  const ABBR = new Set(['m', 'mme', 'mlle', 'mm', 'dr', 'pr', 'st', 'ste', 'etc', 'cf', 'p', 'pp', 'vol',
+    'chap', 'av', 'apr', 'env', 'fig', 'no', 'n°', 'jr', 'sr', 'mr', 'mrs', 'ms', 'vs']);
+  const ENDP = /[.!?…]/, CLOSE = /[»"”’)\]]/, WS = /\s/;
+  const STARTER = /[\p{Lu}\p{N}«“"—–\-¿¡]/u;
+  function splitSentences(text, maxLen, breaks) {
+    maxLen = maxLen || 250;
+    const bset = new Set(breaks || []);
+    const raw = [];
+    const push = (a, b) => {
+      while (a < b && WS.test(text[a])) a++;
+      while (b > a && WS.test(text[b - 1])) b--;
+      if (b > a) raw.push([a, b]);
+    };
+    let start = 0;
+    for (let i = 0; i < text.length; i++) {
+      if (bset.has(i) && i > start) { push(start, i); start = i; }
+      if (!ENDP.test(text[i])) continue;
+      let j = i;
+      while (j + 1 < text.length && ENDP.test(text[j + 1])) j++;
+      if (text[i] === '.' && j === i) {
+        const w = /([\p{L}°]+)$/u.exec(text.slice(start, i));
+        if (w && ((w[1].length === 1 && /\p{Lu}/u.test(w[1])) || ABBR.has(w[1].toLowerCase()))) { i = j; continue; }
+      }
+      let k = j + 1, end = j + 1, sawSpace = false;
+      while (k < text.length && !bset.has(k) && (WS.test(text[k]) || CLOSE.test(text[k]))) {
+        if (WS.test(text[k])) sawSpace = true; else end = k + 1;
+        k++;
+      }
+      const isEnd = k >= text.length || bset.has(k) || ((sawSpace || end > j + 1) && STARTER.test(text[k]));
+      if (!isEnd || (!sawSpace && k < text.length && !bset.has(k) && end === j + 1)) { i = j; continue; }
+      push(start, end);
+      start = end;
+      i = end - 1;
+    }
+    push(start, text.length);
+    // Découpe des phrases trop longues
+    const out = [];
+    for (let [a, b] of raw) {
+      while (b - a > maxLen) {
+        const win = text.slice(a, a + maxLen);
+        let cut = -1;
+        for (let p = win.length - 1; p > maxLen * 0.3; p--) {
+          if (/[,;:]/.test(win[p]) && (p + 1 >= win.length || WS.test(text[a + p + 1]))) { cut = a + p + 1; break; }
+        }
+        if (cut < 0) { const sp = win.lastIndexOf(' '); cut = sp > 0 ? a + sp : a + maxLen; }
+        let e = cut;
+        while (e > a && WS.test(text[e - 1])) e--;
+        out.push([a, e]);
+        a = cut;
+        while (a < b && WS.test(text[a])) a++;
+      }
+      if (b > a) out.push([a, b]);
+    }
+    return out;
+  }
+
+  // TTS-3 : choix de la voix (région demandée d'abord, puis qualité)
+  const QUALITY = /premium|enhanced|amélioré|neural|natural/i;
+  const DEFAULT_REGION = { fr: 'FR', en: 'US', es: 'ES', de: 'DE', it: 'IT', pt: 'PT', nl: 'NL' };
+  function pickVoice(voices, lang) {
+    if (!voices || !voices.length) return null;
+    const [b, r] = String(lang || 'fr').replace('_', '-').split('-');
+    const base = b.toLowerCase(), region = (r || DEFAULT_REGION[base] || '').toUpperCase();
+    let best = null, bestScore = -1;
+    for (const v of voices) {
+      const [vb, vr] = String(v.lang || '').replace('_', '-').split('-');
+      if ((vb || '').toLowerCase() !== base) continue;
+      const score = 10 + ((vr || '').toUpperCase() === region ? 5 : 0) + (QUALITY.test(v.name) ? 3 : 0)
+        + (v.localService ? 1 : 0) + (v.default ? 0.5 : 0);
+      if (score > bestScore) { best = v; bestScore = score; }
+    }
+    if (!best) best = voices.find((v) => v.default) || voices[0];
+    return best.name;
+  }
+
+  // TTS-6 : vitesse de la voix
+  function clampTtsRate(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return 1;
+    return Math.round(Math.max(0.5, Math.min(2, n)) * 10) / 10;
+  }
+  function formatRate(v) { return v.toFixed(1).replace('.', ',') + '×'; }
+
+  // TTS-8 : minuterie de sommeil
+  function nextSleepOption(cur, hasChapters) {
+    const opts = [null, 15, 30, 60];
+    if (hasChapters) opts.push('chapter');
+    const i = opts.indexOf(cur);
+    return opts[(i + 1) % opts.length];
+  }
+  function formatSleep(left) {
+    if (left === null || left === undefined) return '⏲';
+    if (left === 'chapter') return 'Fin chap.';
+    return Math.max(0, Math.ceil(left / 60000)) + ' min';
+  }
+
   const Core = {
+    splitSentences, pickVoice, clampTtsRate, formatRate, nextSleepOption, formatSleep,
     THEMES, effectiveTheme, parseColor, contrastRatio,
     foldText, searchFolded, snippet, resultCount,
     locate, pageLabel,

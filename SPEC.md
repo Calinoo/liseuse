@@ -89,6 +89,23 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | SRCH-6 | Un PDF sans texte (page scannée) affiche « Ce PDF ne contient pas de texte cherchable ». |
 | SRCH-7 | Le bouton ✕ ou la touche Échap ferme le panneau. En le rouvrant, la recherche précédente et ses résultats sont toujours là (tant que le livre reste ouvert). |
 
+## 5 quater. Lecture à voix haute (TTS)
+
+Utilise les voix installées sur l'appareil (synthèse vocale du système) : gratuit, hors connexion, rien n'est envoyé sur Internet.
+
+| ID | Exigence |
+|---|---|
+| TTS-1 | Un bouton 🔊 dans la barre du bas lance la lecture à voix haute à partir de la première phrase visible en haut de l'écran (sous la barre du haut). Le bouton est absent si l'appareil n'a pas de synthèse vocale. |
+| TTS-2 | La lecture avance phrase par phrase dans tout le livre, en passant d'un chapitre ou d'une page à l'autre, jusqu'à la fin, où elle s'arrête. Un titre, un paragraphe ou un élément de liste n'est jamais fusionné avec le suivant. Une phrase de plus de 250 caractères est découpée (à une ponctuation `, ; :` si possible, sinon à un espace), car iOS coupe les phrases trop longues. Les abréviations courantes (M., Mme, Dr, etc.) et les initiales ne coupent pas une phrase. |
+| TTS-3 | Voix : celle de la langue du livre (français par défaut). On préfère d'abord la variante régionale demandée (France pour « fr »), puis, parmi elles, les voix « Premium » ou « Améliorée ». Sans voix de cette langue, la voix par défaut de l'appareil. |
+| TTS-4 | **Suivi** : la phrase lue est surlignée (couleur distincte de la recherche). Quand elle sort de la zone entre 15 % et 60 % de la hauteur de l'écran, le texte défile doucement pour la ramener au tiers supérieur. Si l'utilisateur fait défiler à la main, le suivi est suspendu pendant 3 s. |
+| TTS-5 | **Commandes** pendant la lecture, à la place de celles du défilement : ⏯ pause/reprise (toucher le texte fait de même ; la reprise relit la phrase en cours depuis son début), ⏮ phrase précédente, ⏭ phrase suivante, ■ arrêt (le surlignage disparaît et les commandes du défilement reviennent). Lancer la voix met le défilement automatique en pause, et inversement. |
+| TTS-6 | **Vitesse de la voix** de 0,5× à 2,0× par pas de 0,1 (affichée « 1,0× »), mémorisée. Un changement s'applique tout de suite en relisant la phrase en cours. |
+| TTS-7 | **Appui long** (0,6 s sans bouger de plus de 10 px) sur un paragraphe d'un EPUB, ou sur une ligne d'un PDF, lance la lecture à partir de là. Un appui long ne compte pas comme un toucher (pas de lecture/pause), et n'ouvre pas le menu de sélection de texte d'iOS dans le lecteur. Un appui plus court, ou qui bouge, ne lance rien. Seul le doigt qui appuie compte : un autre doigt, une souris ou un trackpad ne l'annulent pas. |
+| TTS-8 | **Minuterie de sommeil** : un bouton fait défiler Désactivée → 15 min → 30 min → 60 min → Fin du chapitre (EPUB seulement) → Désactivée, et affiche le temps restant. Quand elle arrive à échéance, la voix s'arrête à la fin de la phrase en cours. |
+| TTS-9 | Pendant la lecture, l'écran reste allumé (comme DEF-8). Si l'app passe en arrière-plan ou si l'écran se verrouille, la lecture se met en pause (limite d'iOS pour les apps web) et reprend à la même phrase avec ⏯. |
+| TTS-10 | Un PDF sans texte affiche « Ce PDF ne contient pas de texte à lire ». La position de lecture est enregistrée au fil de la voix (PROG-3). |
+
 ## 6. Affichage (AFF)
 
 | ID | Exigence |
@@ -116,4 +133,4 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 ---
 
 ## Hors périmètre (pour l'instant)
-EPUB protégés par DRM, synchronisation entre appareils (prévue dans un second temps : le choix de la technique reste à faire), annotations, recherche dans le texte, mise en page fixe (EPUB « fixed layout »).
+Lecture à voix haute écran verrouillé ou en arrière-plan (impossible pour une app web sur iOS : nécessiterait une app native), voix neuronales en ligne, EPUB protégés par DRM, synchronisation entre appareils (prévue dans un second temps : le choix de la technique reste à faire), annotations, mise en page fixe (EPUB « fixed layout »).

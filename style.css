@@ -181,6 +181,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .search-hit { position: absolute; pointer-events: none; z-index: 2; animation: hitfade 3.5s ease forwards; }
 @keyframes hitfade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 
+/* ---------- Lecture à voix haute (TTS) ---------- */
+#content { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#ttsBtn { display: grid; place-items: center; }
+.tts-controls { display: none; flex: 1; align-items: center; justify-content: space-between; gap: 4px; min-width: 0; }
+#readerView.tts-on .tts-controls { display: flex; }
+#readerView.tts-on .normal-ctl { display: none !important; }
+.tts-controls .icon-btn { min-width: 38px; font-size: 20px; }
+.tts-controls .play { width: 48px; height: 48px; font-size: 18px; }
+.tts-rate { display: flex; align-items: center; gap: 4px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.tts-rate .icon-btn.small { min-width: 30px; height: 30px; font-size: 16px; }
+.tts-controls .sleep { font-size: 13px; font-weight: 600; min-width: 52px; white-space: nowrap; }
+.tts-hit { position: absolute; pointer-events: none; z-index: 1; border-radius: 3px; background: rgba(70, 150, 255, .26); }
+[data-theme="amber"] .tts-hit, [data-theme="night"] .tts-hit { background: rgba(120, 170, 255, .2); }
+
 .loading {
   position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; gap: 14px;
   align-items: center; justify-content: center; background: color-mix(in srgb, var(--bg) 85%, transparent); color: var(--muted);

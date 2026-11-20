@@ -27,6 +27,13 @@ Le dossier doit être mis en ligne en HTTPS, car iOS exige HTTPS pour le mode ho
 
 > Les livres sont enregistrés dans l'app installée, pas sur le serveur. Rien n'est envoyé en ligne.
 
+## Lecture à voix haute
+
+- Bouton 🔊 en bas : lit à partir du haut de l'écran. Appui long sur un paragraphe : lit à partir de là.
+- La phrase lue est surlignée et le texte suit la voix. Commandes : ⏮ ⏯ ⏭ ■, vitesse de la voix, minuterie ⏲.
+- Pour une voix plus naturelle, téléchargez une voix française « Améliorée » ou « Premium » dans Réglages > Accessibilité > Contenu énoncé > Voix. La Liseuse la choisira automatiquement.
+- Limite d'iOS pour les apps web : la lecture s'arrête si l'écran se verrouille ou si vous changez d'app. L'écran reste donc allumé pendant la lecture, et ⏯ reprend à la même phrase.
+
 ## Bon à savoir
 
 - **Écran qui se verrouille** : la Liseuse demande à garder l'écran allumé pendant le défilement. C'est pris en charge par les versions récentes d'iOS (18.4 et plus pour une app ajoutée à l'écran d'accueil). Sur une version plus ancienne, augmentez « Verrouillage automatique » dans Réglages > Luminosité et affichage.

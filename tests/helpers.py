@@ -90,8 +90,10 @@ def stored_books(page):
 
 
 def install_clock(page):
-    """Horloge simulée : le temps n'avance que via page.clock.run_for(ms)."""
-    page.clock.install()
+    """Fige l'horloge simulée (installée avant le chargement par la fixture `app`) :
+    le temps n'avance plus que via page.clock.run_for(ms), ce qui rend les mesures exactes
+    même quand la machine est chargée."""
+    page.clock.pause_at(page.evaluate("Date.now()") + 1)
 
 
 NUM = re.compile(r"\d+")

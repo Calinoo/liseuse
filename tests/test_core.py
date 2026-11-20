@@ -246,3 +246,107 @@ def test_AFF9_parse_color(core, c, expected):
 ])
 def test_AFF10_effective_theme(core, s, dark, expected):
     assert core("effectiveTheme", s, dark) == expected
+
+
+# ---------- TTS-2 : découpage en phrases ----------
+def sentences(core, text, maxlen=250, breaks=None):
+    return [text[a:b] for a, b in core("splitSentences", text, maxlen, breaks or [])]
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("Bonjour. Ça va ? Oui !", ["Bonjour.", "Ça va ?", "Oui !"]),
+    ("Il hésita… Puis partit.", ["Il hésita…", "Puis partit."]),
+    ("Il hésita... Puis partit.", ["Il hésita...", "Puis partit."]),
+    ("« Viens ! » dit-il. Elle vint.", ["« Viens ! » dit-il.", "Elle vint."]),
+    ("Il cria : « Non ! » Puis rien.", ["Il cria : « Non ! »", "Puis rien."]),
+    ("M. Dupont et Mme Durand arrivent. Fin.", ["M. Dupont et Mme Durand arrivent.", "Fin."]),
+    ("Le Dr. Watson, etc. Ensuite.", ["Le Dr. Watson, etc. Ensuite."]),
+    ("J. K. Rowling écrit. Bien.", ["J. K. Rowling écrit.", "Bien."]),
+    ("Version 2.5 sortie. Ok.", ["Version 2.5 sortie.", "Ok."]),
+    ("  espaces   autour.  ", ["espaces   autour."]),
+    ("sans ponctuation finale", ["sans ponctuation finale"]),
+    ("", []),
+    ("   ", []),
+])
+def test_TTS2_split_sentences(core, text, expected):
+    assert sentences(core, text) == expected
+
+
+def test_TTS2_block_breaks_are_hard_boundaries(core):
+    text = "Chapitre 1 Il était une fois. Suite"
+    # « Il » commence un nouveau bloc (index 11), « Suite » aussi (index 30)
+    assert sentences(core, text, breaks=[11, 30]) == ["Chapitre 1", "Il était une fois.", "Suite"]
+
+
+def test_TTS2_long_sentence_split_at_punctuation(core):
+    text = ("Premier membre de phrase assez long, " * 4 + "deuxième partie qui continue encore ; "
+            * 4 + "et une fin.")
+    parts = sentences(core, text, 120)
+    assert all(len(p) <= 120 for p in parts)
+    assert " ".join(parts).replace("  ", " ") == text.strip()
+    assert all(p.endswith((",", ";", ".")) for p in parts[:-1])
+
+
+def test_TTS2_long_sentence_without_punctuation_split_at_space(core):
+    text = " ".join(["mot"] * 100)  # 399 caractères, aucune ponctuation
+    parts = sentences(core, text, 100)
+    assert all(len(p) <= 100 for p in parts)
+    assert all(not p.startswith(" ") and not p.endswith(" ") for p in parts)
+    assert " ".join(parts) == text
+
+
+def test_TTS2_unbreakable_word_hard_split(core):
+    parts = sentences(core, "x" * 260, 100)
+    assert [len(p) for p in parts] == [100, 100, 60]
+
+
+# ---------- TTS-3 : choix de la voix ----------
+VOICES = [
+    {"name": "Thomas", "lang": "fr-FR", "localService": True, "default": True},
+    {"name": "Amélie (Améliorée)", "lang": "fr-CA", "localService": True},
+    {"name": "Audrey (Premium)", "lang": "fr-FR", "localService": True},
+    {"name": "Samantha", "lang": "en-US", "localService": True},
+    {"name": "Daniel (Enhanced)", "lang": "en-GB", "localService": True},
+]
+
+
+@pytest.mark.parametrize("voices, lang, expected", [
+    (VOICES, "fr", "Audrey (Premium)"),
+    (VOICES, "fr-FR", "Audrey (Premium)"),
+    (VOICES, "fr-CA", "Amélie (Améliorée)"),
+    (VOICES[:2], "fr", "Thomas"),            # sans Premium : variante de France d'abord
+    (VOICES, "en", "Samantha"),             # région (US) avant qualité
+    (VOICES, "en-GB", "Daniel (Enhanced)"),
+    (VOICES, "de", "Thomas"),                # langue absente : voix par défaut
+    ([], "fr", None),
+])
+def test_TTS3_pick_voice(core, voices, lang, expected):
+    assert core("pickVoice", voices, lang) == expected
+
+
+# ---------- TTS-6 : vitesse de la voix ----------
+@pytest.mark.parametrize("v, expected", [(1, 1), (0.3, 0.5), (2.4, 2), (1.04, 1), (1.26, 1.3), ("x", 1)])
+def test_TTS6_clamp_rate(core, v, expected):
+    assert core("clampTtsRate", v) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("v, expected", [(1, "1,0×"), (0.5, "0,5×"), (1.3, "1,3×"), (2, "2,0×")])
+def test_TTS6_format_rate(core, v, expected):
+    assert core("formatRate", v) == expected
+
+
+# ---------- TTS-8 : minuterie ----------
+@pytest.mark.parametrize("cur, chapters, expected", [
+    (None, True, 15), (15, True, 30), (30, True, 60), (60, True, "chapter"), ("chapter", True, None),
+    (60, False, None),   # PDF : pas d'option « fin du chapitre »
+])
+def test_TTS8_next_sleep_option(core, cur, chapters, expected):
+    assert core("nextSleepOption", cur, chapters) == expected
+
+
+@pytest.mark.parametrize("left, expected", [
+    (None, "⏲"), ("chapter", "Fin chap."), (15 * 60_000, "15 min"), (14 * 60_000 + 1, "15 min"),
+    (59_000, "1 min"), (0, "0 min"),
+])
+def test_TTS8_format_sleep(core, left, expected):
+    assert core("formatSleep", left) == expected
