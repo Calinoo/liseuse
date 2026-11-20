@@ -79,20 +79,20 @@ def test_AFF13_rotation_reasserts_scale_1(app, books):
 
 ZOOMED = """() => { Object.defineProperty(window.visualViewport, 'scale', { configurable: true, get: () => %s }); }"""
 FIRE = """() => {
+  window.visualViewport.dispatchEvent(new Event('resize'));
   const g = new Event('gesturestart', { cancelable: true, bubbles: true });
   document.body.dispatchEvent(g);
-  const t = new Event('touchmove', { cancelable: true, bubbles: true });
-  Object.defineProperty(t, 'touches', { value: [{ clientX: 10, clientY: 10 }, { clientX: 90, clientY: 90 }] });
-  document.body.dispatchEvent(t);
-  return [g.defaultPrevented, t.defaultPrevented];
+  return [g.defaultPrevented, getComputedStyle(document.getElementById('scroller')).touchAction];
 }"""
 
 
 def test_AFF13_stuck_zoom_can_be_undone(app):
     app.evaluate(ZOOMED % "1")
-    assert app.evaluate(FIRE) == [True, True]          # normal : l'app ne zoome pas
+    prevented, ta = app.evaluate(FIRE)                 # normal : l'app ne zoome pas
+    assert prevented and "pan" in ta
     app.evaluate(ZOOMED % "1.6")
-    assert app.evaluate(FIRE) == [False, False]        # coincée en zoom : on laisse dézoomer
+    prevented, ta = app.evaluate(FIRE)                 # coincée en zoom : on laisse dézoomer
+    assert not prevented and ta == "auto"
 
 
 def test_AFF13_version_shown_matches_cache(app):

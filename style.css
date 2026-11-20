@@ -34,7 +34,7 @@
 html, body { margin: 0; background: var(--bg); color: var(--fg); }
 body {
   font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  touch-action: manipulation; -webkit-text-size-adjust: 100%;
+  touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%;
 }
 button { font: inherit; color: inherit; cursor: pointer; }
 .hidden { display: none !important; }
@@ -228,3 +228,6 @@ input[type="range"]::-moz-range-thumb {
 #voiceSelect { max-width: 62%; font: inherit; font-size: 15px; padding: 6px 8px; border-radius: 8px;
   border: 1px solid var(--line, #ccc); background: var(--bg); color: var(--fg); }
 .version { color: var(--muted); font-size: 12px; text-align: center; margin: 24px 0 0; }
+/* DEF-11 / AFF-12 : pas de zoom de la page, sans écouteur bloquant */
+html, #scroller { touch-action: pan-x pan-y; }
+html.page-zoomed, html.page-zoomed body, html.page-zoomed #scroller { touch-action: auto; }

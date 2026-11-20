@@ -310,7 +310,10 @@ scroller.addEventListener('touchcancel', endTouch, { passive: true });
 // AFF-13 : si iOS a malgré tout laissé la page zoomée, on le laisse dézoomer
 const pageZoomed = () => !!(window.visualViewport && Math.abs(window.visualViewport.scale - 1) > 0.01);
 ['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => { if (!pageZoomed()) e.preventDefault(); }));
-document.addEventListener('touchmove', (e) => { if (e.touches && e.touches.length > 1 && !pageZoomed()) e.preventDefault(); }, { passive: false });
+// DEF-11 : le zoom est bloqué en CSS (touch-action), jamais par un écouteur bloquant ;
+// la classe page-zoomed rend la main à iOS si la page est restée zoomée
+const syncZoomed = () => document.documentElement.classList.toggle('page-zoomed', pageZoomed());
+if (window.visualViewport) window.visualViewport.addEventListener('resize', syncZoomed);
 const pinch = { on: false, d0: 0, start: 0, value: 0, ratio: 0, cx: 0 };
 const fingerGap = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
 function applyPdfZoom(z, cx) {
@@ -334,14 +337,13 @@ scroller.addEventListener('touchstart', (e) => {
 }, { passive: true });
 scroller.addEventListener('touchmove', (e) => {
   if (!pinch.on || !e.touches || e.touches.length < 2 || pageZoomed()) return;
-  e.preventDefault();
   const v = state.pdf ? Core.pinchValue(pinch.start, pinch.d0, fingerGap(e.touches), 1, 3, 0.05)
     : Core.pinchValue(pinch.start, pinch.d0, fingerGap(e.touches), Core.FONT_MIN, Core.FONT_MAX, 1);
   if (v === pinch.value) return;
   pinch.value = v;
   if (state.pdf) { settings.pdfZoom = v; applyPdfZoom(v, pinch.cx); }
   else { settings.fontSize = v; applySettings(); restoreRatio(pinch.ratio); }
-}, { passive: false });
+}, { passive: true });
 function endPinch(e) {
   if (!pinch.on || (e.touches && e.touches.length >= 2)) return;
   pinch.on = false;
@@ -1237,7 +1239,7 @@ function handleLink(a) {
 
 /* ---------- Démarrage ---------- */
 // Points d'observation pour les tests automatiques (lecture seule)
-const APP_VERSION = 'v9'; // = numéro du cache dans sw.js (AFF-13)
+const APP_VERSION = 'v10'; // = numéro du cache dans sw.js (AFF-13)
 $('#version').textContent = `Liseuse ${APP_VERSION}`;
 window.LiseuseApp = { ready: false, lastSavedProgress: null, longPresses: 0 };
 setSpeed(settings.speed);

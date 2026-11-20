@@ -46,7 +46,7 @@ def test_AFF12_pinch_changes_epub_text_size(app, books):
     set_ratio(app, 0.4)
     settle(app)
     assert app.locator("#fontVal").inner_text() == "19"
-    assert pinch(app, 1.5), "le geste ne doit pas zoomer la page"
+    pinch(app, 1.5)
     settle(app)
     assert app.locator("#fontVal").inner_text() == "29"
     assert app.evaluate("getComputedStyle(document.querySelector('.epub-body')).getPropertyValue('--fs').trim()") == "29"

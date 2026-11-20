@@ -6,7 +6,7 @@ est terminée (__ttsFinish), ce qui rend tout exact et reproductible.
 """
 import pytest
 
-from helpers import import_books, open_book, set_scroll, set_ratio, scroll_top, tap_text, is_playing, SCROLL
+from helpers import install_clock, import_books, open_book, set_scroll, set_ratio, scroll_top, tap_text, is_playing, SCROLL
 
 STUB = """
 (() => {
@@ -90,6 +90,10 @@ def long_press(page, selector, ms=700, move=0, y_frac=0.5):
     page.evaluate("s => document.querySelector(s).scrollIntoView({ block: 'center' })", selector)
     box = page.locator(selector).first.bounding_box()
     x, y = box["x"] + min(40, box["width"] / 2), box["y"] + box["height"] * y_frac
+    if ms < 600 or move:
+        # appui court : horloge figée, sinon le temps réel écoulé sous forte charge
+        # pourrait dépasser 0,6 s et fausser la mesure
+        install_clock(page)
     page.dispatch_event("#scroller", "pointerdown", {"clientX": x, "clientY": y, "pointerType": "touch",
                                                     "isPrimary": True, "pointerId": 7})
     if move:
