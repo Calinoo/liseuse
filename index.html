@@ -2,7 +2,7 @@
 <html lang="fr" data-theme="light">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Liseuse</title>
 <meta name="theme-color" content="#faf8f3">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -28,7 +28,6 @@
     <p><strong>Aucun livre pour l'instant.</strong></p>
     <p>Touchez « Ajouter un livre » et choisissez un fichier PDF ou EPUB dans l'app Fichiers. Il sera copié dans la liseuse et restera lisible hors connexion.</p>
   </div>
-  <p id="version" class="version"></p>
 </main>
 
 <!-- Lecteur -->
@@ -53,22 +52,13 @@
       <input type="range" id="seek" min="0" max="1000" step="1" value="0" aria-label="Aller à une position du livre">
       <span id="seekLabel" class="seek-label hidden"></span>
     </div>
-    <button id="playBtn" class="play normal-ctl" aria-label="Lecture">▶</button>
-    <div class="speed normal-ctl">
+    <button id="playBtn" class="play" aria-label="Lecture">▶</button>
+    <div class="speed">
       <button id="slower" class="icon-btn small" aria-label="Plus lent">−</button>
       <input type="range" id="speed" min="5" max="200" step="1" aria-label="Vitesse de défilement">
       <button id="faster" class="icon-btn small" aria-label="Plus rapide">+</button>
     </div>
-    <span id="speedVal" class="speed-val normal-ctl"></span>
-    <button id="ttsBtn" class="icon-btn normal-ctl" aria-label="Lire à voix haute"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-    <div id="ttsControls" class="tts-controls" aria-label="Lecture à voix haute">
-      <button id="ttsPrev" class="icon-btn" aria-label="Phrase précédente">⏮</button>
-      <button id="ttsPlay" class="play" aria-label="Pause voix">❚❚</button>
-      <button id="ttsNext" class="icon-btn" aria-label="Phrase suivante">⏭</button>
-      <button id="ttsStop" class="icon-btn" aria-label="Arrêter la voix">■</button>
-      <span class="tts-rate"><button id="ttsSlower" class="icon-btn small" aria-label="Voix plus lente">−</button><span id="ttsRate">1,0×</span><button id="ttsFaster" class="icon-btn small" aria-label="Voix plus rapide">+</button></span>
-      <button id="ttsSleep" class="icon-btn sleep" aria-label="Minuterie de sommeil">⏲</button>
-    </div>
+    <span id="speedVal" class="speed-val"></span>
     <button id="settingsBtn" class="icon-btn" aria-label="Réglages d'affichage">Aa</button>
   </div>
 
@@ -112,11 +102,6 @@
         <button data-font="sans">Sans</button>
       </div>
     </div>
-    <div class="row voice-row hidden" id="voiceRow">
-      <label for="voiceSelect">Voix</label>
-      <select id="voiceSelect"></select>
-    </div>
-    <p class="hint voice-row hidden" id="voiceHint">Voix plus naturelles, gratuites : Réglages &gt; Accessibilité &gt; Lire et énoncer (ou « Contenu énoncé ») &gt; Voix, puis téléchargez une voix « Améliorée » ou « Premium ».</p>
     <p class="hint">Touchez le texte pour lancer ou arrêter le défilement. Faites glisser pour avancer ou reculer à la main.</p>
   </div>
 </section>

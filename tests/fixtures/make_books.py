@@ -84,10 +84,7 @@ def make_epub(path, title="Mon livre de test", with_container=True):
                '<p id="piege" onclick="window.__pwned=true" style="color:red">Paragraphe piégé.</p>'
                '<style>body{display:none}</style><script>window.__pwned = true;</script>'
                + paras(1) + '<p id="note1">Note 1.</p>')
-        longue = ("<p id=\"longue\">Cette phrase est volontairement très longue, "
-                  + "elle enchaîne des propositions séparées par des virgules, " * 6
-                  + "et elle se termine enfin ici.</p>")
-        ch2 = '<h1>Chapitre 2</h1>' + longue + '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ' \
+        ch2 = '<h1>Chapitre 2</h1><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ' \
               'viewBox="0 0 40 30" width="100%"><image id="svgimg" width="40" height="30" ' \
               'xlink:href="../Images/ma%20photo.png"/></svg>' + paras(2)
         ch3 = ("<h1>Chapitre 3</h1>" + paras(3)

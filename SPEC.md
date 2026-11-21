@@ -55,8 +55,6 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | DEF-8 | Pendant le défilement, l'app demande à garder l'écran allumé (Wake Lock) si l'appareil le permet, et libère cette demande à la pause. |
 | DEF-9 | **Fluidité** : pendant le défilement, le texte avance d'une quantité régulière à chaque image (au sous-pixel près), sans alterner « 1 px / 0 px ». À 30 px/s et 60 images/s, chaque image avance de 0,5 px (± 0,08). |
 | DEF-10 | Pendant le défilement, aucun travail coûteux n'est fait à chaque image : les barres masquées ne sont plus dessinées (`visibility: hidden`), et le pourcentage et le temps restant sont rafraîchis au plus 4 fois par seconde. |
-| DEF-11 | **Le défilement au doigt reste celui d'iOS, sans surcoût** : aucun écouteur `touchstart`, `touchmove` ou `wheel` n'est bloquant (tous sont `passive`) ; le cadre du texte garde `touch-action` normal (aucune règle `pan-x`/`pan-y`, qui oblige iOS à calculer des zones tactiles sur tout le livre) ; le suivi du doigt pour l'appui long (TTS-7) n'écoute les mouvements que pendant un appui. Le zoom de la page est empêché par la balise `viewport` et l'annulation des gestes de Safari. |
-| DEF-12 | **Pas de couche graphique au repos.** Le décalage sous-pixel (DEF-9) n'existe que pendant le défilement automatique ; au repos et pendant le défilement au doigt, le texte n'a aucune transformation (une couche permanente sur un livre de plusieurs millions de pixels ralentit le défilement sur iPhone). Les images d'un EPUB sont décodées en arrière-plan (`decoding="async"`). |
 
 ## 5. Progression (PROG)
 
@@ -91,24 +89,6 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | SRCH-6 | Un PDF sans texte (page scannée) affiche « Ce PDF ne contient pas de texte cherchable ». |
 | SRCH-7 | Le bouton ✕ ou la touche Échap ferme le panneau. En le rouvrant, la recherche précédente et ses résultats sont toujours là (tant que le livre reste ouvert). |
 
-## 5 quater. Lecture à voix haute (TTS)
-
-Utilise les voix installées sur l'appareil (synthèse vocale du système) : gratuit, hors connexion, rien n'est envoyé sur Internet.
-
-| ID | Exigence |
-|---|---|
-| TTS-1 | Un bouton 🔊 dans la barre du bas lance la lecture à voix haute à partir de la première phrase visible en haut de l'écran (sous la barre du haut). Le bouton est absent si l'appareil n'a pas de synthèse vocale. |
-| TTS-2 | La lecture avance phrase par phrase dans tout le livre, en passant d'un chapitre ou d'une page à l'autre, jusqu'à la fin, où elle s'arrête. Un titre, un paragraphe ou un élément de liste n'est jamais fusionné avec le suivant. Une phrase de plus de 250 caractères est découpée (à une ponctuation `, ; :` si possible, sinon à un espace), car iOS coupe les phrases trop longues. Les abréviations courantes (M., Mme, Dr, etc.) et les initiales ne coupent pas une phrase. |
-| TTS-3 | Voix : celle de la langue du livre (français par défaut). On préfère d'abord la variante régionale demandée (France pour « fr »), puis la qualité : « Premium », puis « Améliorée », puis standard. La qualité se lit dans le nom **ou dans l'identifiant** de la voix (`voiceURI`), car sur iPhone la voix améliorée porte le même nom que la standard (ex. deux « Audrey »). Les voix fantaisie ou robotiques (Eddy, Flo, Grandma, Grandpa, Reed, Rocko, Sandy, Shelley, voix « Eloquence » et voix gadgets macOS) ne sont jamais choisies automatiquement. Une voix est identifiée par son `voiceURI` (à défaut, son nom). Sans voix de cette langue, la voix par défaut de l'appareil. |
-| TTS-4 | **Suivi** : la phrase lue est surlignée (couleur distincte de la recherche). Quand elle sort de la zone entre 15 % et 60 % de la hauteur de l'écran, le texte défile doucement pour la ramener au tiers supérieur. Si l'utilisateur fait défiler à la main, le suivi est suspendu pendant 3 s. |
-| TTS-5 | **Commandes** pendant la lecture, à la place de celles du défilement : ⏯ pause/reprise (toucher le texte fait de même ; la reprise relit la phrase en cours depuis son début), ⏮ phrase précédente, ⏭ phrase suivante, ■ arrêt (le surlignage disparaît et les commandes du défilement reviennent). Lancer la voix met le défilement automatique en pause, et inversement. |
-| TTS-6 | **Vitesse de la voix** de 0,5× à 2,0× par pas de 0,1 (affichée « 1,0× »), mémorisée. Un changement s'applique tout de suite en relisant la phrase en cours. |
-| TTS-7 | **Appui long** (0,6 s sans bouger de plus de 10 px) sur un paragraphe d'un EPUB, ou sur une ligne d'un PDF, lance la lecture à partir de là. Un appui long ne compte pas comme un toucher (pas de lecture/pause), et n'ouvre pas le menu de sélection de texte d'iOS dans le lecteur. Un appui plus court, ou qui bouge, ne lance rien. Seul le doigt qui appuie compte : un autre doigt, une souris ou un trackpad ne l'annulent pas. |
-| TTS-8 | **Minuterie de sommeil** : un bouton fait défiler Désactivée → 15 min → 30 min → 60 min → Fin du chapitre (EPUB seulement) → Désactivée, et affiche le temps restant. Quand elle arrive à échéance, la voix s'arrête à la fin de la phrase en cours. |
-| TTS-9 | Pendant la lecture, l'écran reste allumé (comme DEF-8). Si l'app passe en arrière-plan ou si l'écran se verrouille, la lecture se met en pause (limite d'iOS pour les apps web) et reprend à la même phrase avec ⏯. |
-| TTS-10 | Un PDF sans texte affiche « Ce PDF ne contient pas de texte à lire ». La position de lecture est enregistrée au fil de la voix (PROG-3). |
-| TTS-11 | **Choix de la voix** dans le panneau Aa (absent sans synthèse vocale) : « Automatique » (TTS-3) puis les voix de la langue du livre, sans les voix fantaisie, triées par région demandée, puis qualité, puis nom ; chaque voix est libellée « Nom · Premium », « Nom · Améliorée » ou « Nom », suivie du pays s'il diffère (ex. « (Canada) »). Le choix est mémorisé et s'applique tout de suite en relisant la phrase en cours. Une voix choisie qui n'existe plus sur l'appareil revient à « Automatique ». Une aide rappelle que des voix plus naturelles se téléchargent gratuitement dans Réglages > Accessibilité > Contenu énoncé > Voix. |
-
 ## 6. Affichage (AFF)
 
 | ID | Exigence |
@@ -123,8 +103,6 @@ Utilise les voix installées sur l'appareil (synthèse vocale du système) : gra
 | AFF-9 | Lisibilité des nouveaux thèmes : le contraste texte/fond est d'au moins 7:1 (niveau AAA) pour chaque thème. **Nuit** : fond noir pur, texte gris clair atténué (contraste au plus 13:1, pour éviter l'éblouissement). **Nuit ambrée** : fond noir, texte ambre presque sans lumière bleue (composante bleue du texte au plus 40 % de la rouge). **Vert reposant** : fond vert pâle, texte vert foncé. |
 | AFF-10 | **Automatique jour/nuit** : une option fait suivre au thème le mode clair/sombre de l'iPhone, en direct, sans recharger. Elle mémorise un thème de jour (par défaut Clair) et un thème de nuit (par défaut Nuit). Choisir un thème pendant que l'option est active remplace le thème de la période en cours. L'option et les deux thèmes sont mémorisés. |
 | AFF-11 | Les curseurs (vitesse, barre de progression) restent visibles dans tous les thèmes : leur rail contraste d'au moins 3:1 avec le fond (critère WCAG pour les éléments d'interface), et le bouton du curseur est à la couleur d'accent du thème. |
-| AFF-12 | **Pincement à deux doigts.** L'app elle-même ne zoome jamais : barres et boutons gardent leur taille, et l'app reste utilisable (zoom de la page bloqué : `maximum-scale=1` et gestes de Safari annulés ; voir DEF-11). Dans un **EPUB**, pincer change la taille du texte en direct : taille de départ × (écart des doigts ÷ écart initial), arrondie et bornée comme le bouton A−/A+. La taille est mémorisée, et la position de lecture est conservée à 1 % près. Dans un **PDF**, pincer agrandit les pages de 100 % à 300 % (par pas de 5 %). Au-delà de 100 %, on glisse aussi de côté. La position verticale est conservée à 1 % près, et les pages sont redessinées nettes à la fin du geste. Le zoom est mémorisé. Un pincement ne compte ni comme un toucher (pas de lecture/pause), ni comme un appui long. Un redimensionnement qui ne change pas la taille de la fenêtre ne touche ni à la position ni aux pages. |
-| AFF-13 | **Rotation sans zoom.** Rien ne dépasse de la largeur de l'écran (bibliothèque, lecteur, panneau Aa, recherche, commandes de la voix), en portrait comme en paysage : sinon iOS dézoome la page. Après une rotation, si la page est restée zoomée, l'app réimpose l'échelle 1 (en réécrivant la balise `viewport`) ; sinon elle n'y touche pas (la réécrire relance toute la mise en page). Si la page est malgré tout zoomée (échelle ≠ 1), le pincement d'iOS n'est plus bloqué (gestes non annulés), pour qu'on puisse revenir en arrière. Le numéro de version de l'app est affiché en bas de la bibliothèque (pour vérifier qu'une mise à jour est bien arrivée). |
 | AFF-5 | L'interface est utilisable sans défilement horizontal sur iPhone (375 px de large) comme sur iPad, en portrait et en paysage, en respectant les zones de sécurité (encoche, barre d'accueil). |
 
 ## 7. Hors connexion (OFF)
@@ -138,4 +116,4 @@ Utilise les voix installées sur l'appareil (synthèse vocale du système) : gra
 ---
 
 ## Hors périmètre (pour l'instant)
-Lecture à voix haute écran verrouillé ou en arrière-plan (impossible pour une app web sur iOS : nécessiterait une app native), voix neuronales en ligne, EPUB protégés par DRM, synchronisation entre appareils (prévue dans un second temps : le choix de la technique reste à faire), annotations, mise en page fixe (EPUB « fixed layout »).
+EPUB protégés par DRM, synchronisation entre appareils (prévue dans un second temps : le choix de la technique reste à faire), annotations, recherche dans le texte, mise en page fixe (EPUB « fixed layout »).
