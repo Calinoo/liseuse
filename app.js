@@ -149,6 +149,7 @@ async function openBook(id) {
   resetSearch();
   content.innerHTML = '';
   content.className = b.type;
+  clearSubpixel();
   // AFF-12 : zoom mémorisé pour les PDF
   const z = b.type === 'pdf' ? settings.pdfZoom || 1 : 1;
   content.style.setProperty('--z', z);
@@ -296,9 +297,15 @@ function setVisual(pos) {
   const base = Math.floor(pos);
   if (base !== state.base) { scroller.scrollTop = base; state.base = base; }
   const frac = pos - base;
-  content.style.transform = frac > 0.001 ? `translate3d(0, ${(-frac).toFixed(3)}px, 0)` : '';
+  setShift(frac > 0.001 ? -frac : 0);
 }
-function clearSubpixel() { content.style.transform = ''; }
+// DEF-12 : la couche graphique du texte n'est jamais détruite (sinon l'iPhone redessine tout)
+const REST = 'translate3d(0, 0, 0)';
+function setShift(y) {
+  const t = y ? `translate3d(0, ${y.toFixed(3)}px, 0)` : REST;
+  if (content.style.transform !== t) content.style.transform = t;
+}
+function clearSubpixel() { setShift(0); }
 
 // Glisser le doigt suspend le défilement, qui reprend tout seul après
 scroller.addEventListener('touchstart', () => { state.touching = true; tts.holdUntil = performance.now() + 3000; tts.anim++; clearSubpixel(); clearTimeout(state.touchTimer); }, { passive: true });
@@ -1203,7 +1210,7 @@ async function sanitize(root, ctx) {
       const src = el.getAttribute('src') || '';
       if (/^data:image\//i.test(src)) continue;
       const u = src && !/^[a-z]+:/i.test(src) ? await ctx.getUrl(resolvePath(ctx.cdir, src)) : null;
-      if (u) el.setAttribute('src', u); else el.remove();
+      if (u) { el.setAttribute('decoding', 'async'); el.setAttribute('src', u); } else el.remove();
     } else if (tag === 'image') {
       const href = el.getAttribute('href') || el.getAttributeNS(XLINK, 'href') || '';
       const u = href && !/^[a-z]+:/i.test(href) ? await ctx.getUrl(resolvePath(ctx.cdir, href)) : null;
@@ -1239,7 +1246,7 @@ function handleLink(a) {
 
 /* ---------- Démarrage ---------- */
 // Points d'observation pour les tests automatiques (lecture seule)
-const APP_VERSION = 'v10'; // = numéro du cache dans sw.js (AFF-13)
+const APP_VERSION = 'v11'; // = numéro du cache dans sw.js (AFF-13)
 $('#version').textContent = `Liseuse ${APP_VERSION}`;
 window.LiseuseApp = { ready: false, lastSavedProgress: null, longPresses: 0 };
 setSpeed(settings.speed);

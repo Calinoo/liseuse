@@ -56,6 +56,7 @@ Cibles : Safari iOS / iPadOS 16+ (app ajoutée à l'écran d'accueil). Égalemen
 | DEF-9 | **Fluidité** : pendant le défilement, le texte avance d'une quantité régulière à chaque image (au sous-pixel près), sans alterner « 1 px / 0 px ». À 30 px/s et 60 images/s, chaque image avance de 0,5 px (± 0,08). |
 | DEF-10 | Pendant le défilement, aucun travail coûteux n'est fait à chaque image : les barres masquées ne sont plus dessinées (`visibility: hidden`), et le pourcentage et le temps restant sont rafraîchis au plus 4 fois par seconde. |
 | DEF-11 | **Le défilement au doigt n'attend jamais le code de l'app** : aucun écouteur `touchstart`, `touchmove` ou `wheel` n'est bloquant (tous sont `passive`). Le zoom de la page est empêché par CSS (`touch-action: pan-x pan-y` sur le document), et non par du code. |
+| DEF-12 | **Couche graphique stable.** Pendant toute la lecture d'un livre, le texte reste sur une seule couche graphique (`transform` toujours présent, `translate3d(0, 0, 0)` au repos). Toucher, pauser ou reprendre le défilement ne la détruit et ne la recrée jamais : sur un long livre, l'iPhone devrait sinon tout redessiner (zones vides pendant le défilement). Les images d'un EPUB sont décodées en arrière-plan (`decoding="async"`). |
 
 ## 5. Progression (PROG)
 
