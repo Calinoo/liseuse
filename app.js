@@ -299,8 +299,7 @@ function setVisual(pos) {
   const frac = pos - base;
   setShift(frac > 0.001 ? -frac : 0);
 }
-// DEF-12 : la couche graphique du texte n'est jamais détruite (sinon l'iPhone redessine tout)
-const REST = 'translate3d(0, 0, 0)';
+const REST = ''; // DEF-12 : aucune couche au repos
 function setShift(y) {
   const t = y ? `translate3d(0, ${y.toFixed(3)}px, 0)` : REST;
   if (content.style.transform !== t) content.style.transform = t;
@@ -933,22 +932,27 @@ scroller.addEventListener('pointerdown', (e) => {
   if (!ttsSupported || (e.pointerType === 'mouse' && e.button !== 0) || e.target.closest('a')) return;
   clearTimeout(press.timer);
   press.x = e.clientX; press.y = e.clientY; press.id = e.pointerId;
+  scroller.addEventListener('pointermove', onPressMove);
   press.timer = setTimeout(() => {
-    press.timer = null;
+    endPress();
     window.LiseuseApp.longPresses++;
     state.suppressClick = true;
     setTimeout(() => { state.suppressClick = false; }, 1000);
     ttsStartAt(locatePoint(press.x, press.y));
   }, 600);
 });
+// DEF-11 : les mouvements ne sont suivis que pendant un appui.
 // Seul le doigt qui appuie compte (un second doigt, une souris ou un trackpad ne l'annulent pas)
-scroller.addEventListener('pointermove', (e) => {
-  if (e.pointerId !== press.id) return;
-  if (press.timer && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) { clearTimeout(press.timer); press.timer = null; }
-});
-['pointerup', 'pointercancel'].forEach((ev) => scroller.addEventListener(ev, (e) => {
-  if (e.pointerId !== press.id) return;
+function endPress() {
   clearTimeout(press.timer); press.timer = null;
+  scroller.removeEventListener('pointermove', onPressMove);
+}
+function onPressMove(e) {
+  if (e.pointerId !== press.id) return;
+  if (Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) endPress();
+}
+['pointerup', 'pointercancel'].forEach((ev) => scroller.addEventListener(ev, (e) => {
+  if (e.pointerId === press.id) endPress();
 }));
 
 /* ---------- Plein écran (AFF-8) ---------- */
@@ -1078,7 +1082,6 @@ function onResize() {
   const size = `${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`;
   if (size === lastSize) return; // AFF-12 : pas un vrai changement de taille
   lastSize = size;
-  onRotate();
   if (!state.book) return;
   const r = state.ratio;
   state.resizing = true;
@@ -1104,10 +1107,11 @@ function resetScale() {
   m.setAttribute('content', vpFlip ? VIEWPORT.replace('initial-scale=1', 'initial-scale=1.0') : VIEWPORT);
 }
 let rotTimer = null;
+// Seulement si la page est vraiment restée zoomée : réécrire la balise sans raison
+// relance toute la mise en page (et peut redéclencher un « resize » sur iPhone).
 function onRotate() {
-  resetScale();
   clearTimeout(rotTimer);
-  rotTimer = setTimeout(resetScale, 500);
+  rotTimer = setTimeout(() => { if (pageZoomed()) resetScale(); }, 500);
 }
 window.addEventListener('orientationchange', onRotate);
 if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', onRotate);
@@ -1246,7 +1250,7 @@ function handleLink(a) {
 
 /* ---------- Démarrage ---------- */
 // Points d'observation pour les tests automatiques (lecture seule)
-const APP_VERSION = 'v11'; // = numéro du cache dans sw.js (AFF-13)
+const APP_VERSION = 'v12'; // = numéro du cache dans sw.js (AFF-13)
 $('#version').textContent = `Liseuse ${APP_VERSION}`;
 window.LiseuseApp = { ready: false, lastSavedProgress: null, longPresses: 0 };
 setSpeed(settings.speed);

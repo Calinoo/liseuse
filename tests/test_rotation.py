@@ -71,7 +71,11 @@ def test_AFF13_rotation_reasserts_scale_1(app, books):
     vp = app.viewport_size
     app.set_viewport_size(landscape(app))
     app.wait_for_timeout(800)
-    assert app.evaluate("window.__vp") >= 1, "la balise viewport doit être réécrite à la rotation"
+    assert app.evaluate("window.__vp") == 0, "pas zoomée : la balise viewport ne doit pas être touchée"
+    app.evaluate(ZOOMED % "1.6")
+    app.evaluate("window.dispatchEvent(new Event('orientationchange'))")
+    app.wait_for_timeout(800)
+    assert app.evaluate("window.__vp") >= 1, "restée zoomée : l'échelle 1 doit être réimposée"
     content = app.locator("meta[name=viewport]").get_attribute("content")
     assert "initial-scale=1" in content and "maximum-scale=1" in content
     app.set_viewport_size(vp)
@@ -82,17 +86,17 @@ FIRE = """() => {
   window.visualViewport.dispatchEvent(new Event('resize'));
   const g = new Event('gesturestart', { cancelable: true, bubbles: true });
   document.body.dispatchEvent(g);
-  return [g.defaultPrevented, getComputedStyle(document.getElementById('scroller')).touchAction];
+  return [g.defaultPrevented, document.documentElement.classList.contains('page-zoomed')];
 }"""
 
 
 def test_AFF13_stuck_zoom_can_be_undone(app):
     app.evaluate(ZOOMED % "1")
-    prevented, ta = app.evaluate(FIRE)                 # normal : l'app ne zoome pas
-    assert prevented and "pan" in ta
+    prevented, zoomed = app.evaluate(FIRE)             # normal : l'app ne zoome pas
+    assert prevented and not zoomed
     app.evaluate(ZOOMED % "1.6")
-    prevented, ta = app.evaluate(FIRE)                 # coincée en zoom : on laisse dézoomer
-    assert not prevented and ta == "auto"
+    prevented, zoomed = app.evaluate(FIRE)             # coincée en zoom : on laisse dézoomer
+    assert not prevented and zoomed
 
 
 def test_AFF13_version_shown_matches_cache(app):
